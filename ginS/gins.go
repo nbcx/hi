@@ -2,14 +2,14 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package ginS
+package hiS
 
 import (
 	"html/template"
 	"net/http"
 	"sync"
 
-	"github.com/nbcx/hi"
+	gin "github.com/nbcx/hi"
 )
 
 var once sync.Once

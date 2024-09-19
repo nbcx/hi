@@ -1,4 +1,4 @@
-package gin
+package hi
 
 import (
 	"errors"

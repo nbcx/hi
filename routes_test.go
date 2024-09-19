@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"fmt"
@@ -481,7 +481,7 @@ func TestRouterMiddlewareAndStatic(t *testing.T) {
 	w := PerformRequest(router, http.MethodGet, "/gin.go")
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "package gin")
+	assert.Contains(t, w.Body.String(), "package hi")
 	// Content-Type='text/plain; charset=utf-8' when go version <= 1.16,
 	// else, Content-Type='text/x-go; charset=utf-8'
 	assert.NotEqual(t, "", w.Header().Get("Content-Type"))
