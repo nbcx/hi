@@ -97,7 +97,7 @@ Gin enables `MsgPack` rendering feature by default. But you can disable this fea
 go build -tags=nomsgpack .
 ```
 
-This is useful to reduce the binary size of executable files. See the [detail information](https://github.com/gin-gonic/gin/pull/1852).
+This is useful to reduce the binary size of executable files. See the [detail information](https://github.com/nbcx/hi/pull/1852).
 
 ## API Examples
 
@@ -264,9 +264,9 @@ ids: map[b:hello a:1234]; names: map[second:tianou first:thinkerou]
 
 #### Single file
 
-References issue [#774](https://github.com/gin-gonic/gin/issues/774) and detail [example code](https://github.com/gin-gonic/examples/tree/master/upload-file/single).
+References issue [#774](https://github.com/nbcx/hi/issues/774) and detail [example code](https://github.com/gin-gonic/examples/tree/master/upload-file/single).
 
-`file.Filename` **SHOULD NOT** be trusted. See [`Content-Disposition` on MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#Directives) and [#1693](https://github.com/gin-gonic/gin/issues/1693)
+`file.Filename` **SHOULD NOT** be trusted. See [`Content-Disposition` on MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#Directives) and [#1693](https://github.com/nbcx/hi/issues/1693)
 
 > The filename is always optional and must not be used blindly by the application: path information should be stripped, and conversion to the server file system rules should be done.
 
@@ -515,19 +515,19 @@ Sample Output
 ```go
 func main() {
   router := gin.New()
-  
+
   // skip logging for desired paths by setting SkipPaths in LoggerConfig
   loggerConfig := gin.LoggerConfig{SkipPaths: []string{"/metrics"}}
-  
+
   // skip logging based on your logic by setting Skip func in LoggerConfig
   loggerConfig.Skip = func(c *gin.Context) bool {
       // as an example skip non server side errors
       return c.Writer.Status() < http.StatusInternalServerError
   }
-  
+
   router.Use(gin.LoggerWithConfig(loggerConfig))
   router.Use(gin.Recovery())
-  
+
   // skipped
   router.GET("/metrics", func(c *gin.Context) {
       c.Status(http.StatusNotImplemented)
@@ -542,7 +542,7 @@ func main() {
   router.GET("/data", func(c *gin.Context) {
     c.Status(http.StatusNotImplemented)
   })
-  
+
   router.Run(":8080")
 }
 
@@ -716,8 +716,8 @@ import (
   "net/http"
   "time"
 
-  "github.com/gin-gonic/gin"
-  "github.com/gin-gonic/gin/binding"
+  "github.com/nbcx/hi"
+  "github.com/nbcx/hi/binding"
   "github.com/go-playground/validator/v10"
 )
 
@@ -775,7 +775,7 @@ See the [struct-lvl-validation example](https://github.com/gin-gonic/examples/tr
 
 ### Only Bind Query String
 
-`ShouldBindQuery` function only binds the query params and not the post data. See the [detail information](https://github.com/gin-gonic/gin/issues/742#issuecomment-315953017).
+`ShouldBindQuery` function only binds the query params and not the post data. See the [detail information](https://github.com/nbcx/hi/issues/742#issuecomment-315953017).
 
 ```go
 package main
@@ -784,7 +784,7 @@ import (
   "log"
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 type Person struct {
@@ -812,7 +812,7 @@ func startPage(c *gin.Context) {
 
 ### Bind Query String or Post Data
 
-See the [detail information](https://github.com/gin-gonic/gin/issues/742#issuecomment-264681292).
+See the [detail information](https://github.com/nbcx/hi/issues/742#issuecomment-264681292).
 
 ```go
 package main
@@ -822,7 +822,7 @@ import (
   "net/http"
   "time"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 type Person struct {
@@ -843,7 +843,7 @@ func startPage(c *gin.Context) {
   var person Person
   // If `GET`, only `Form` binding engine (`query`) used.
   // If `POST`, first checks the `content-type` for `JSON` or `XML`, then uses `Form` (`form-data`).
-  // See more at https://github.com/gin-gonic/gin/blob/master/binding/binding.go#L88
+  // See more at https://github.com/nbcx/hi/blob/master/binding/binding.go#L88
   if c.ShouldBind(&person) == nil {
     log.Println(person.Name)
     log.Println(person.Address)
@@ -878,7 +878,7 @@ package main
 import (
 	"log"
 	"time"
-	"github.com/gin-gonic/gin"
+	"github.com/nbcx/hi"
 )
 
 type Person struct {
@@ -898,7 +898,7 @@ func startPage(c *gin.Context) {
 	var person Person
 	// If `GET`, only `Form` binding engine (`query`) used.
 	// If `POST`, first checks the `content-type` for `JSON` or `XML`, then uses `Form` (`form-data`).
-	// See more at https://github.com/gin-gonic/gin/blob/master/binding/binding.go#L48
+	// See more at https://github.com/nbcx/hi/blob/master/binding/binding.go#L48
         if c.ShouldBind(&person) == nil {
                 log.Println(person.Name)
                 log.Println(person.Addresses)
@@ -911,13 +911,14 @@ func startPage(c *gin.Context) {
 ```
 
 Test it with:
+
 ```sh
 $ curl -X GET "localhost:8085/testing?name=appleboy&addresses=foo,bar&birthday=1992-03-15&createTime=1562400033000000123&unixTime=1562400033"
 ```
 
 ### Bind Uri
 
-See the [detail information](https://github.com/gin-gonic/gin/issues/846).
+See the [detail information](https://github.com/nbcx/hi/issues/846).
 
 ```go
 package main
@@ -925,7 +926,7 @@ package main
 import (
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 type Person struct {
@@ -960,7 +961,7 @@ curl -v localhost:8088/thinkerou/not-uuid
 package main
 
 import (
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
   "strings"
 )
 
@@ -989,7 +990,9 @@ Test it with:
 ```sh
 curl 'localhost:8088/test?birthday=2000-01-01'
 ```
+
 Result
+
 ```sh
 "2000/01/01"
 ```
@@ -1003,7 +1006,7 @@ import (
   "fmt"
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 type testHeader struct {
@@ -1035,7 +1038,7 @@ func main() {
 
 ### Bind HTML checkboxes
 
-See the [detail information](https://github.com/gin-gonic/gin/issues/129#issuecomment-124260092)
+See the [detail information](https://github.com/nbcx/hi/issues/129#issuecomment-124260092)
 
 main.go
 
@@ -1062,21 +1065,21 @@ form.html
 
 ```html
 <form action="/" method="POST">
-    <p>Check some colors</p>
-    <label for="red">Red</label>
-    <input type="checkbox" name="colors[]" value="red" id="red">
-    <label for="green">Green</label>
-    <input type="checkbox" name="colors[]" value="green" id="green">
-    <label for="blue">Blue</label>
-    <input type="checkbox" name="colors[]" value="blue" id="blue">
-    <input type="submit">
+  <p>Check some colors</p>
+  <label for="red">Red</label>
+  <input type="checkbox" name="colors[]" value="red" id="red" />
+  <label for="green">Green</label>
+  <input type="checkbox" name="colors[]" value="green" id="green" />
+  <label for="blue">Blue</label>
+  <input type="checkbox" name="colors[]" value="blue" id="blue" />
+  <input type="submit" />
 </form>
 ```
 
 result:
 
 ```json
-{"color":["red","green","blue"]}
+{ "color": ["red", "green", "blue"] }
 ```
 
 ### Multipart/Urlencoded binding
@@ -1204,7 +1207,7 @@ func main() {
 
 #### JSONP
 
-Using JSONP to request data from a server  in a different domain. Add callback to response body if the query parameter callback exists.
+Using JSONP to request data from a server in a different domain. Add callback to response body if the query parameter callback exists.
 
 ```go
 func main() {
@@ -1253,7 +1256,7 @@ func main() {
 
 #### PureJSON
 
-Normally, JSON replaces special HTML characters with their unicode entities, e.g. `<` becomes  `\u003c`. If you want to encode such characters literally, you can use PureJSON instead.
+Normally, JSON replaces special HTML characters with their unicode entities, e.g. `<` becomes `\u003c`. If you want to encode such characters literally, you can use PureJSON instead.
 This feature is unavailable in Go 1.6 and lower.
 
 ```go
@@ -1288,7 +1291,7 @@ func main() {
   router.StaticFS("/more_static", http.Dir("my_file_system"))
   router.StaticFile("/favicon.ico", "./resources/favicon.ico")
   router.StaticFileFS("/more_favicon.ico", "more_favicon.ico", http.Dir("my_file_system"))
-  
+
   // Listen and serve on 0.0.0.0:8080
   router.Run(":8080")
 }
@@ -1361,9 +1364,7 @@ templates/index.tmpl
 
 ```html
 <html>
-  <h1>
-    {{ .title }}
-  </h1>
+  <h1>{{ .title }}</h1>
 </html>
 ```
 
@@ -1391,10 +1392,9 @@ templates/posts/index.tmpl
 
 ```html
 {{ define "posts/index.tmpl" }}
-<html><h1>
-  {{ .title }}
-</h1>
-<p>Using posts/index.tmpl</p>
+<html>
+  <h1>{{ .title }}</h1>
+  <p>Using posts/index.tmpl</p>
 </html>
 {{ end }}
 ```
@@ -1403,10 +1403,9 @@ templates/users/index.tmpl
 
 ```html
 {{ define "users/index.tmpl" }}
-<html><h1>
-  {{ .title }}
-</h1>
-<p>Using users/index.tmpl</p>
+<html>
+  <h1>{{ .title }}</h1>
+  <p>Using users/index.tmpl</p>
 </html>
 {{ end }}
 ```
@@ -1449,7 +1448,7 @@ import (
   "net/http"
   "time"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func formatAsDate(t time.Time) string {
@@ -1502,7 +1501,7 @@ r.GET("/test", func(c *gin.Context) {
 })
 ```
 
-Issuing a HTTP redirect from POST. Refer to issue: [#444](https://github.com/gin-gonic/gin/issues/444)
+Issuing a HTTP redirect from POST. Refer to issue: [#444](https://github.com/nbcx/hi/issues/444)
 
 ```go
 r.POST("/test", func(c *gin.Context) {
@@ -1512,7 +1511,7 @@ r.POST("/test", func(c *gin.Context) {
 
 Issuing a Router redirect, use `HandleContext` like below.
 
-``` go
+```go
 r.GET("/test", func(c *gin.Context) {
     c.Request.URL.Path = "/test2"
     r.HandleContext(c)
@@ -1674,7 +1673,7 @@ import (
   "net/http"
 
   "github.com/gin-gonic/autotls"
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -1699,7 +1698,7 @@ import (
   "net/http"
 
   "github.com/gin-gonic/autotls"
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
   "golang.org/x/crypto/acme/autocert"
 )
 
@@ -1723,7 +1722,7 @@ func main() {
 
 ### Run multiple service using Gin
 
-See the [question](https://github.com/gin-gonic/gin/issues/346) and try the following example:
+See the [question](https://github.com/nbcx/hi/issues/346) and try the following example:
 
 ```go
 package main
@@ -1733,7 +1732,7 @@ import (
   "net/http"
   "time"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
   "golang.org/x/sync/errgroup"
 )
 
@@ -1816,7 +1815,7 @@ There are a few approaches you can use to perform a graceful shutdown or restart
 
 #### Third-party packages
 
-We can use [fvbock/endless](https://github.com/fvbock/endless) to replace the default `ListenAndServe`. Refer to issue [#296](https://github.com/gin-gonic/gin/issues/296) for more details.
+We can use [fvbock/endless](https://github.com/fvbock/endless) to replace the default `ListenAndServe`. Refer to issue [#296](https://github.com/nbcx/hi/issues/296) for more details.
 
 ```go
 router := gin.Default()
@@ -1827,9 +1826,9 @@ endless.ListenAndServe(":4242", router)
 
 Alternatives:
 
-* [grace](https://github.com/facebookgo/grace): Graceful restart & zero downtime deploy for Go servers.
-* [graceful](https://github.com/tylerb/graceful): Graceful is a Go package enabling graceful shutdown of an http.Handler server.
-* [manners](https://github.com/braintree/manners): A polite Go HTTP server that shuts down gracefully.
+- [grace](https://github.com/facebookgo/grace): Graceful restart & zero downtime deploy for Go servers.
+- [graceful](https://github.com/tylerb/graceful): Graceful is a Go package enabling graceful shutdown of an http.Handler server.
+- [manners](https://github.com/braintree/manners): A polite Go HTTP server that shuts down gracefully.
 
 #### Manually
 
@@ -1849,7 +1848,7 @@ import (
   "syscall"
   "time"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -1907,7 +1906,7 @@ import (
   "html/template"
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 //go:embed assets/* templates/*
@@ -2078,12 +2077,12 @@ func SomeHandler(c *gin.Context) {
 ```
 
 1. `c.ShouldBindBodyWith` stores body into the context before binding. This has
-a slight impact to performance, so you should not use this method if you are
-enough to call binding at once.
+   a slight impact to performance, so you should not use this method if you are
+   enough to call binding at once.
 2. This feature is only needed for some formats -- `JSON`, `XML`, `MsgPack`,
-`ProtoBuf`. For other formats, `Query`, `Form`, `FormPost`, `FormMultipart`,
-can be called by `c.ShouldBind()` multiple times without any damage to
-performance (See [#1341](https://github.com/gin-gonic/gin/pull/1341)).
+   `ProtoBuf`. For other formats, `Query`, `Form`, `FormPost`, `FormMultipart`,
+   can be called by `c.ShouldBind()` multiple times without any damage to
+   performance (See [#1341](https://github.com/nbcx/hi/pull/1341)).
 
 ### Bind form-data request with custom struct and custom tag
 
@@ -2152,7 +2151,7 @@ import (
   "log"
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 var html = template.Must(template.New("https").Parse(`
@@ -2207,7 +2206,7 @@ import (
   "log"
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -2239,7 +2238,7 @@ func main() {
 import (
   "fmt"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -2272,7 +2271,7 @@ or network CIDRs from where clients which their request headers related to clien
 IP can be trusted. They can be IPv4 addresses, IPv4 CIDRs, IPv6 addresses or
 IPv6 CIDRs.
 
-**Attention:** Gin trust all proxies by default if you don't specify a trusted 
+**Attention:** Gin trust all proxies by default if you don't specify a trusted
 proxy using the function above, **this is NOT safe**. At the same time, if you don't
 use any proxy, you can disable this feature by using `Engine.SetTrustedProxies(nil)`,
 then `Context.ClientIP()` will return the remote address directly to avoid some
@@ -2282,7 +2281,7 @@ unnecessary computation.
 import (
   "fmt"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -2301,14 +2300,14 @@ func main() {
 ```
 
 **Notice:** If you are using a CDN service, you can set the `Engine.TrustedPlatform`
-to skip TrustedProxies check, it has a higher priority than TrustedProxies. 
+to skip TrustedProxies check, it has a higher priority than TrustedProxies.
 Look at the example below:
 
 ```go
 import (
   "fmt"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func main() {
@@ -2344,7 +2343,7 @@ package main
 import (
   "net/http"
 
-  "github.com/gin-gonic/gin"
+  "github.com/nbcx/hi"
 )
 
 func setupRouter() *gin.Engine {

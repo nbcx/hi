@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/gin-gonic/gin/binding"
+	"github.com/nbcx/hi/binding"
 	"github.com/stretchr/testify/assert"
 )
 

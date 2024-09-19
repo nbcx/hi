@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/gin-contrib/sse"
-	"github.com/gin-gonic/gin/binding"
-	testdata "github.com/gin-gonic/gin/testdata/protoexample"
+	"github.com/nbcx/hi/binding"
+	testdata "github.com/nbcx/hi/testdata/protoexample"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -155,8 +155,9 @@ func TestSaveUploadedCreateFailed(t *testing.T) {
 }
 
 func TestContextReset(t *testing.T) {
-	router := New()
-	c := router.allocateContext(0)
+	ctx := &Context{}
+	router := New(ctx)
+	c := router.allocateContext(ctx, 0)
 	assert.Equal(t, c.engine, router)
 
 	c.index = 2
@@ -164,7 +165,7 @@ func TestContextReset(t *testing.T) {
 	c.Params = Params{Param{}}
 	c.Error(errors.New("test")) //nolint: errcheck
 	c.Set("foo", "bar")
-	c.reset()
+	c.Reset()
 
 	assert.False(t, c.IsAborted())
 	assert.Nil(t, c.Keys)
@@ -504,7 +505,7 @@ func TestContextHandlerName(t *testing.T) {
 	c, _ := CreateTestContext(httptest.NewRecorder())
 	c.handlers = HandlersChain{func(c *Context) {}, handlerNameTest}
 
-	assert.Regexp(t, "^(.*/vendor/)?github.com/gin-gonic/gin.handlerNameTest$", c.HandlerName())
+	assert.Regexp(t, "^(.*/vendor/)?github.com/nbcx/hi.handlerNameTest$", c.HandlerName())
 }
 
 func TestContextHandlerNames(t *testing.T) {
@@ -571,7 +572,7 @@ func TestContextQuery(t *testing.T) {
 }
 
 func TestContextInitQueryCache(t *testing.T) {
-	validURL, err := url.Parse("https://github.com/gin-gonic/gin/pull/3969?key=value&otherkey=othervalue")
+	validURL, err := url.Parse("https://github.com/nbcx/hi/pull/3969?key=value&otherkey=othervalue")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -2717,7 +2718,7 @@ func TestContextResetInHandler(t *testing.T) {
 	c, _ := CreateTestContext(w)
 
 	c.handlers = []HandlerFunc{
-		func(c *Context) { c.reset() },
+		func(c *Context) { c.Reset() },
 	}
 	assert.NotPanics(t, func() {
 		c.Next()
@@ -2920,7 +2921,8 @@ func TestContextCopyShouldNotCancel(t *testing.T) {
 
 	wg := &sync.WaitGroup{}
 
-	r := New()
+	ctx := &Context{}
+	r := New(ctx)
 	r.GET("/", func(ginctx *Context) {
 		wg.Add(1)
 
@@ -2987,7 +2989,7 @@ func TestContextAddParam(t *testing.T) {
 
 func TestCreateTestContextWithRouteParams(t *testing.T) {
 	w := httptest.NewRecorder()
-	engine := New()
+	engine := New(&Context{})
 	engine.GET("/:action/:name", func(ctx *Context) {
 		ctx.String(http.StatusOK, "%s %s", ctx.Param("action"), ctx.Param("name"))
 	})

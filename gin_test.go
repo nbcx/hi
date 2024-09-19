@@ -29,13 +29,13 @@ func formatAsDate(t time.Time) string {
 	return fmt.Sprintf("%d/%02d/%02d", year, month, day)
 }
 
-func setupHTMLFiles(t *testing.T, mode string, tls bool, loadMethod func(*Engine)) *httptest.Server {
+func setupHTMLFiles(t *testing.T, mode string, tls bool, loadMethod func(*Engine[*Context])) *httptest.Server {
 	SetMode(mode)
 	defer SetMode(TestMode)
 
-	var router *Engine
+	var router *Engine[*Context]
 	captureOutput(t, func() {
-		router = New()
+		router = New(&Context{})
 		router.Delims("{[{", "}]}")
 		router.SetFuncMap(template.FuncMap{
 			"formatAsDate": formatAsDate,
@@ -67,7 +67,7 @@ func TestLoadHTMLGlobDebugMode(t *testing.T) {
 		t,
 		DebugMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLGlob("./testdata/template/*")
 		},
 	)
@@ -125,7 +125,7 @@ func TestLoadHTMLGlobTestMode(t *testing.T) {
 		t,
 		TestMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLGlob("./testdata/template/*")
 		},
 	)
@@ -145,7 +145,7 @@ func TestLoadHTMLGlobReleaseMode(t *testing.T) {
 		t,
 		ReleaseMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLGlob("./testdata/template/*")
 		},
 	)
@@ -165,7 +165,7 @@ func TestLoadHTMLGlobUsingTLS(t *testing.T) {
 		t,
 		DebugMode,
 		true,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLGlob("./testdata/template/*")
 		},
 	)
@@ -192,7 +192,7 @@ func TestLoadHTMLGlobFromFuncMap(t *testing.T) {
 		t,
 		DebugMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLGlob("./testdata/template/*")
 		},
 	)
@@ -212,7 +212,7 @@ func init() {
 }
 
 func TestCreateEngine(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	assert.Equal(t, "/", router.basePath)
 	assert.Equal(t, router.engine, router)
 	assert.Empty(t, router.Handlers)
@@ -223,7 +223,7 @@ func TestLoadHTMLFilesTestMode(t *testing.T) {
 		t,
 		TestMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
 		},
 	)
@@ -243,7 +243,7 @@ func TestLoadHTMLFilesDebugMode(t *testing.T) {
 		t,
 		DebugMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
 		},
 	)
@@ -263,7 +263,7 @@ func TestLoadHTMLFilesReleaseMode(t *testing.T) {
 		t,
 		ReleaseMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
 		},
 	)
@@ -283,7 +283,7 @@ func TestLoadHTMLFilesUsingTLS(t *testing.T) {
 		t,
 		TestMode,
 		true,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
 		},
 	)
@@ -310,7 +310,7 @@ func TestLoadHTMLFilesFuncMap(t *testing.T) {
 		t,
 		TestMode,
 		false,
-		func(router *Engine) {
+		func(router *Engine[*Context]) {
 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
 		},
 	)
@@ -326,7 +326,7 @@ func TestLoadHTMLFilesFuncMap(t *testing.T) {
 }
 
 func TestAddRoute(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.addRoute("GET", "/", HandlersChain{func(_ *Context) {}})
 
 	assert.Len(t, router.trees, 1)
@@ -344,7 +344,7 @@ func TestAddRoute(t *testing.T) {
 }
 
 func TestAddRouteFails(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	assert.Panics(t, func() { router.addRoute("", "/", HandlersChain{func(_ *Context) {}}) })
 	assert.Panics(t, func() { router.addRoute("GET", "a", HandlersChain{func(_ *Context) {}}) })
 	assert.Panics(t, func() { router.addRoute("GET", "/", HandlersChain{}) })
@@ -364,7 +364,7 @@ func TestNoRouteWithoutGlobalHandlers(t *testing.T) {
 	var middleware0 HandlerFunc = func(c *Context) {}
 	var middleware1 HandlerFunc = func(c *Context) {}
 
-	router := New()
+	router := New(&Context{})
 
 	router.NoRoute(middleware0)
 	assert.Nil(t, router.Handlers)
@@ -387,7 +387,7 @@ func TestNoRouteWithGlobalHandlers(t *testing.T) {
 	var middleware1 HandlerFunc = func(c *Context) {}
 	var middleware2 HandlerFunc = func(c *Context) {}
 
-	router := New()
+	router := New(&Context{})
 	router.Use(middleware2)
 
 	router.NoRoute(middleware0)
@@ -417,7 +417,7 @@ func TestNoMethodWithoutGlobalHandlers(t *testing.T) {
 	var middleware0 HandlerFunc = func(c *Context) {}
 	var middleware1 HandlerFunc = func(c *Context) {}
 
-	router := New()
+	router := New(&Context{})
 
 	router.NoMethod(middleware0)
 	assert.Empty(t, router.Handlers)
@@ -443,7 +443,7 @@ func TestNoMethodWithGlobalHandlers(t *testing.T) {
 	var middleware1 HandlerFunc = func(c *Context) {}
 	var middleware2 HandlerFunc = func(c *Context) {}
 
-	router := New()
+	router := New(&Context{})
 	router.Use(middleware2)
 
 	router.NoMethod(middleware0)
@@ -478,7 +478,7 @@ func compareFunc(t *testing.T, a, b any) {
 }
 
 func TestListOfRoutes(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.GET("/favicon.ico", handlerTest1)
 	router.GET("/", handlerTest1)
 	group := router.Group("/users")
@@ -495,32 +495,32 @@ func TestListOfRoutes(t *testing.T) {
 	assertRoutePresent(t, list, RouteInfo{
 		Method:  "GET",
 		Path:    "/favicon.ico",
-		Handler: "^(.*/vendor/)?github.com/gin-gonic/gin.handlerTest1$",
+		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
 	assertRoutePresent(t, list, RouteInfo{
 		Method:  "GET",
 		Path:    "/",
-		Handler: "^(.*/vendor/)?github.com/gin-gonic/gin.handlerTest1$",
+		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
 	assertRoutePresent(t, list, RouteInfo{
 		Method:  "GET",
 		Path:    "/users/",
-		Handler: "^(.*/vendor/)?github.com/gin-gonic/gin.handlerTest2$",
+		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest2$",
 	})
 	assertRoutePresent(t, list, RouteInfo{
 		Method:  "GET",
 		Path:    "/users/:id",
-		Handler: "^(.*/vendor/)?github.com/gin-gonic/gin.handlerTest1$",
+		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
 	assertRoutePresent(t, list, RouteInfo{
 		Method:  "POST",
 		Path:    "/users/:id",
-		Handler: "^(.*/vendor/)?github.com/gin-gonic/gin.handlerTest2$",
+		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest2$",
 	})
 }
 
 func TestEngineHandleContext(t *testing.T) {
-	r := New()
+	r := New(&Context{})
 	r.GET("/", func(c *Context) {
 		c.Request.URL.Path = "/v2"
 		r.HandleContext(c)
@@ -541,7 +541,7 @@ func TestEngineHandleContextManyReEntries(t *testing.T) {
 
 	var handlerCounter, middlewareCounter int64
 
-	r := New()
+	r := New(&Context{})
 	r.Use(func(c *Context) {
 		atomic.AddInt64(&middlewareCounter, 1)
 	})
@@ -574,7 +574,7 @@ func TestEngineHandleContextManyReEntries(t *testing.T) {
 }
 
 func TestPrepareTrustedCIRDsWith(t *testing.T) {
-	r := New()
+	r := New(&Context{})
 
 	// valid ipv4 cidr
 	{
@@ -700,7 +700,7 @@ func handlerTest1(c *Context) {}
 func handlerTest2(c *Context) {}
 
 func TestNewOptionFunc(t *testing.T) {
-	var fc = func(e *Engine) {
+	var fc = func(e *Engine[*Context]) {
 		e.GET("/test1", handlerTest1)
 		e.GET("/test2", handlerTest2)
 
@@ -709,17 +709,17 @@ func TestNewOptionFunc(t *testing.T) {
 		})
 	}
 
-	r := New(fc)
+	r := New(&Context{}, fc)
 
 	routes := r.Routes()
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/gin-gonic/gin.handlerTest1"})
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/gin-gonic/gin.handlerTest2"})
+	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
+	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
 }
 
 func TestWithOptionFunc(t *testing.T) {
-	r := New()
+	r := New(&Context{})
 
-	r.With(func(e *Engine) {
+	r.With(func(e *Engine[*Context]) {
 		e.GET("/test1", handlerTest1)
 		e.GET("/test2", handlerTest2)
 
@@ -729,8 +729,8 @@ func TestWithOptionFunc(t *testing.T) {
 	})
 
 	routes := r.Routes()
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/gin-gonic/gin.handlerTest1"})
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/gin-gonic/gin.handlerTest2"})
+	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
+	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
 }
 
 type Birthday string
@@ -756,9 +756,9 @@ func TestCustomUnmarshalStruct(t *testing.T) {
 	assert.Equal(t, `"2000/01/01"`, w.Body.String())
 }
 
-// Test the fix for https://github.com/gin-gonic/gin/issues/4002
+// Test the fix for https://github.com/nbcx/hi/issues/4002
 func TestMethodNotAllowedNoRoute(t *testing.T) {
-	g := New()
+	g := New(&Context{})
 	g.HandleMethodNotAllowed = true
 
 	req := httptest.NewRequest("GET", "/", nil)

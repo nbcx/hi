@@ -36,7 +36,7 @@ func (t *testStruct) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func TestWrap(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.POST("/path", WrapH(&testStruct{t}))
 	router.GET("/path2", WrapF(func(w http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, "GET", req.Method)
@@ -86,7 +86,7 @@ func TestFilterFlags(t *testing.T) {
 }
 
 func TestFunctionName(t *testing.T) {
-	assert.Regexp(t, `^(.*/vendor/)?github.com/gin-gonic/gin.somefunction$`, nameOfFunction(somefunction))
+	assert.Regexp(t, `^(.*/vendor/)?github.com/nbcx/hi.somefunction$`, nameOfFunction(somefunction))
 }
 
 func somefunction() {
@@ -114,7 +114,7 @@ type bindTestStruct struct {
 func TestBindMiddleware(t *testing.T) {
 	var value *bindTestStruct
 	var called bool
-	router := New()
+	router := New(&Context{})
 	router.GET("/", Bind(bindTestStruct{}), func(c *Context) {
 		called = true
 		value = c.MustGet(BindKey).(*bindTestStruct)

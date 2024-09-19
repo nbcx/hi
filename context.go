@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/gin-contrib/sse"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/gin-gonic/gin/render"
+	"github.com/nbcx/hi/binding"
+	"github.com/nbcx/hi/render"
 )
 
 // Content-Type MIME of the most common data formats.
@@ -51,6 +51,8 @@ const ContextRequestKey ContextKeyType = 0
 // abortIndex represents a typical value used in abort functions.
 const abortIndex int8 = math.MaxInt8 >> 1
 
+type IEngine interface{}
+
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
@@ -63,7 +65,7 @@ type Context struct {
 	index    int8
 	fullPath string
 
-	engine       *Engine
+	engine       *Engine[IContext] // todo: need check
 	params       *Params
 	skippedNodes *[]skippedNode
 
@@ -91,11 +93,38 @@ type Context struct {
 	sameSite http.SameSite
 }
 
+func (c *Context) New(e any, maxParams uint16) {
+	v := make(Params, 0, maxParams)
+	en := e.(*Engine[IContext])
+	skippedNodes := make([]skippedNode, 0, en.maxSections)
+
+	c.engine = en
+	c.params = &v
+	c.skippedNodes = &skippedNodes
+	// return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
+}
+
 /************************************/
 /********** CONTEXT CREATION ********/
 /************************************/
+func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
+	c.writermem.reset(w)
+	c.Request = req
+	c.Reset()
+}
 
-func (c *Context) reset() {
+func (c *Context) Req() *http.Request                 { return c.Request }
+func (c *Context) WriterMem() *responseWriter         { return &c.writermem }
+func (c *Context) Rsp() ResponseWriter                { return c.Writer }
+func (c *Context) SetParams(ps *Params)               { c.params = ps }
+func (c *Context) GetParams() *Params                 { return c.params }
+func (c *Context) GetSkippedNodes() *[]skippedNode    { return c.skippedNodes }
+func (c *Context) SetHandlers(handlers HandlersChain) { c.handlers = handlers }
+func (c *Context) SetFullPath(fullPath string)        { c.fullPath = fullPath }
+func (c *Context) GetIndex() int8                     { return c.index }
+func (c *Context) SetIndex(index int8)                { c.index = index }
+
+func (c *Context) Reset() {
 	c.Writer = &c.writermem
 	c.Params = c.Params[:0]
 	c.handlers = nil

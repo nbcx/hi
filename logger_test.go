@@ -21,7 +21,7 @@ func init() {
 
 func TestLogger(t *testing.T) {
 	buffer := new(strings.Builder)
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithWriter(buffer))
 	router.GET("/example", func(c *Context) {})
 	router.POST("/example", func(c *Context) {})
@@ -85,7 +85,7 @@ func TestLogger(t *testing.T) {
 
 func TestLoggerWithConfig(t *testing.T) {
 	buffer := new(strings.Builder)
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithConfig(LoggerConfig{Output: buffer}))
 	router.GET("/example", func(c *Context) {})
 	router.POST("/example", func(c *Context) {})
@@ -156,7 +156,7 @@ func TestLoggerWithFormatter(t *testing.T) {
 		DefaultWriter = d
 	}()
 
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithFormatter(func(param LogFormatterParams) string {
 		return fmt.Sprintf("[FORMATTER TEST] %v | %3d | %13v | %15s | %-7s %#v\n%s",
 			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
@@ -184,7 +184,7 @@ func TestLoggerWithConfigFormatting(t *testing.T) {
 	var gotKeys map[string]any
 	buffer := new(strings.Builder)
 
-	router := New()
+	router := New(&Context{})
 	router.engine.trustedCIDRs, _ = router.engine.prepareTrustedCIDRs()
 
 	router.Use(LoggerWithConfig(LoggerConfig{
@@ -356,7 +356,7 @@ func TestIsOutputColor(t *testing.T) {
 }
 
 func TestErrorLogger(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.Use(ErrorLogger())
 	router.GET("/error", func(c *Context) {
 		c.Error(errors.New("this is an error")) //nolint: errcheck
@@ -384,7 +384,7 @@ func TestErrorLogger(t *testing.T) {
 
 func TestLoggerWithWriterSkippingPaths(t *testing.T) {
 	buffer := new(strings.Builder)
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithWriter(buffer, "/skipped"))
 	router.GET("/logged", func(c *Context) {})
 	router.GET("/skipped", func(c *Context) {})
@@ -399,7 +399,7 @@ func TestLoggerWithWriterSkippingPaths(t *testing.T) {
 
 func TestLoggerWithConfigSkippingPaths(t *testing.T) {
 	buffer := new(strings.Builder)
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithConfig(LoggerConfig{
 		Output:    buffer,
 		SkipPaths: []string{"/skipped"},
@@ -417,7 +417,7 @@ func TestLoggerWithConfigSkippingPaths(t *testing.T) {
 
 func TestLoggerWithConfigSkipper(t *testing.T) {
 	buffer := new(strings.Builder)
-	router := New()
+	router := New(&Context{})
 	router.Use(LoggerWithConfig(LoggerConfig{
 		Output: buffer,
 		Skip: func(c *Context) bool {
@@ -436,7 +436,7 @@ func TestLoggerWithConfigSkipper(t *testing.T) {
 }
 
 func TestDisableConsoleColor(t *testing.T) {
-	New()
+	New(&Context{})
 	assert.Equal(t, autoColor, consoleColorMode)
 	DisableConsoleColor()
 	assert.Equal(t, disableColor, consoleColorMode)
@@ -446,7 +446,7 @@ func TestDisableConsoleColor(t *testing.T) {
 }
 
 func TestForceConsoleColor(t *testing.T) {
-	New()
+	New(&Context{})
 	assert.Equal(t, autoColor, consoleColorMode)
 	ForceConsoleColor()
 	assert.Equal(t, forceColor, consoleColorMode)
