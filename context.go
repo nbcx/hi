@@ -7,7 +7,6 @@ package hi
 import (
 	"errors"
 	"io"
-	"log"
 	"math"
 	"mime/multipart"
 	"net"
@@ -67,7 +66,7 @@ type Context struct {
 	fullPath string
 
 	// engine       *Engine[IContext] // todo: need check
-	params *Params
+	// params *Params
 	// skippedNodes *[]skippedNode
 
 	// This mutex protects Keys map.
@@ -110,7 +109,7 @@ type Context struct {
 	// Deprecated: USE `TrustedPlatform` WITH VALUE `gin.PlatformGoogleAppEngine` INSTEAD
 	// #726 #755 If enabled, it will trust some headers starting with
 	// 'X-AppEngine...' for better integration with that PaaS.
-	AppEngine bool
+	// AppEngine bool
 
 	// RemoteIPHeaders list of headers used to obtain the client IP when
 	// `(*gin.Engine).ForwardedByClientIP` is `true` and
@@ -127,13 +126,13 @@ type Context struct {
 	HTMLRender render.HTMLRender
 }
 
-func (c *Context) New(maxSections, maxParams uint16) {
-	v := make(Params, 0, maxParams)
+func (c *Context) New(maxParams uint16) {
+	// v := make(Params, 0, maxParams)
 	// en := e.(*Engine[IContext])
 	// skippedNodes := make([]skippedNode, 0, maxSections)
 
 	// c.engine = en
-	c.params = &v
+	// c.params = &v
 	// c.skippedNodes = &skippedNodes
 	c.ForwardedByClientIP = true
 	c.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
@@ -150,12 +149,12 @@ func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
 	c.Request = req
 	c.Reset()
 }
-
 func (c *Context) Req() *http.Request         { return c.Request }
 func (c *Context) WriterMem() *responseWriter { return &c.writermem }
 func (c *Context) Rsp() ResponseWriter        { return c.Writer }
-func (c *Context) SetParams(ps *Params)       { c.params = ps }
-func (c *Context) GetParams() *Params         { return c.params }
+
+// func (c *Context) SetParams(ps *Params)       { c.params = ps }
+// func (c *Context) GetParams() *Params         { return c.params }
 
 // func (c *Context) GetSkippedNodes() *[]skippedNode              { return c.skippedNodes }
 // func (c *Context) SetHandlers(handlers HandlersChain[*Context]) { c.handlers = handlers }
@@ -181,7 +180,7 @@ func (c *Context) Reset() {
 	c.queryCache = nil
 	c.formCache = nil
 	c.sameSite = 0
-	*c.params = (*c.params)[:0]
+	// *c.params = (*c.params)[:0]
 	// *c.skippedNodes = (*c.skippedNodes)[:0]
 }
 
@@ -264,16 +263,6 @@ func (c *Context) FullPath() string {
 // It executes the pending handlers in the chain inside the calling handler.
 // See example in GitHub.
 func (c *Context) Next() {
-	// c.index++
-	// for c.index < int8(len(c.handlers)) {
-	// 	if c.handlers[c.index] == nil {
-	// 		continue
-	// 	}
-	// 	c.handlers[c.index](c)
-	// 	c.index++
-	// }
-
-	// todo: wait check and do
 	c.execer.Next()
 }
 
@@ -1528,12 +1517,12 @@ func (c *Context) ClientIP() string {
 	}
 
 	// Legacy "AppEngine" flag
-	if c.AppEngine {
-		log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
-		if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
-			return addr
-		}
-	}
+	// if c.AppEngine {
+	// 	log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
+	// 	if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
+	// 		return addr
+	// 	}
+	// }
 
 	// It also checks if the remoteIP is a trusted proxy or not.
 	// In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
@@ -1593,34 +1582,34 @@ func (c *Context) validateHeader(header string) (clientIP string, valid bool) {
 	return "", false
 }
 
-func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
-	if engine.trustedProxies == nil {
-		return nil, nil
-	}
+// func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
+// 	if engine.trustedProxies == nil {
+// 		return nil, nil
+// 	}
 
-	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
-	for _, trustedProxy := range engine.trustedProxies {
-		if !strings.Contains(trustedProxy, "/") {
-			ip := parseIP(trustedProxy)
-			if ip == nil {
-				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
-			}
+// 	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
+// 	for _, trustedProxy := range engine.trustedProxies {
+// 		if !strings.Contains(trustedProxy, "/") {
+// 			ip := parseIP(trustedProxy)
+// 			if ip == nil {
+// 				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
+// 			}
 
-			switch len(ip) {
-			case net.IPv4len:
-				trustedProxy += "/32"
-			case net.IPv6len:
-				trustedProxy += "/128"
-			}
-		}
-		_, cidrNet, err := net.ParseCIDR(trustedProxy)
-		if err != nil {
-			return cidr, err
-		}
-		cidr = append(cidr, cidrNet)
-	}
-	return cidr, nil
-}
+// 			switch len(ip) {
+// 			case net.IPv4len:
+// 				trustedProxy += "/32"
+// 			case net.IPv6len:
+// 				trustedProxy += "/128"
+// 			}
+// 		}
+// 		_, cidrNet, err := net.ParseCIDR(trustedProxy)
+// 		if err != nil {
+// 			return cidr, err
+// 		}
+// 		cidr = append(cidr, cidrNet)
+// 	}
+// 	return cidr, nil
+// }
 
 // SetTrustedProxies set a list of network origins (IPv4 addresses,
 // IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust

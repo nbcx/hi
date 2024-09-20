@@ -158,7 +158,7 @@ func TestContextReset(t *testing.T) {
 	c := router.allocateContext(ctx, 0)
 	// assert.Equal(t, c.engine, router)
 
-	c.index = 2
+	c.execer.SetIndex(2)
 	c.Writer = &responseWriter{ResponseWriter: httptest.NewRecorder()}
 	c.Params = Params{Param{}}
 	c.Error(errors.New("test")) //nolint: errcheck
@@ -172,7 +172,7 @@ func TestContextReset(t *testing.T) {
 	assert.Empty(t, c.Errors.Errors())
 	assert.Empty(t, c.Errors.ByType(ErrorTypeAny))
 	assert.Empty(t, c.Params)
-	assert.EqualValues(t, c.index, -1)
+	assert.EqualValues(t, c.execer.GetIndex(), -1)
 	assert.Equal(t, c.Writer.(*responseWriter), &c.writermem)
 }
 
@@ -479,7 +479,7 @@ func TestContextGetStringMapStringSlice(t *testing.T) {
 
 func TestContextCopy(t *testing.T) {
 	c, _ := CreateTestContext(httptest.NewRecorder())
-	c.index = 2
+	c.execer.SetIndex(2)
 	c.Request, _ = http.NewRequest("POST", "/hola", nil)
 	// todo: change test execer
 	// c.handlers = HandlersChain[*Context]{func(c *Context) {}}
@@ -492,7 +492,7 @@ func TestContextCopy(t *testing.T) {
 	assert.Nil(t, cp.writermem.ResponseWriter)
 	assert.Equal(t, &cp.writermem, cp.Writer.(*responseWriter))
 	assert.Equal(t, cp.Request, c.Request)
-	assert.Equal(t, abortIndex, cp.index)
+	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.Equal(t, cp.Keys, c.Keys)
 	// assert.Equal(t, cp.engine, c.engine)
 	assert.Equal(t, cp.Params, c.Params)
@@ -1472,7 +1472,7 @@ func TestContextNegotiationNotSupport(t *testing.T) {
 	})
 
 	assert.Equal(t, http.StatusNotAcceptable, w.Code)
-	assert.Equal(t, abortIndex, c.index)
+	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.True(t, c.IsAborted())
 }
 
@@ -1550,7 +1550,8 @@ func TestContextIsAborted(t *testing.T) {
 	c.Next()
 	assert.True(t, c.IsAborted())
 
-	c.index++
+	// c.index++
+	c.execer.SetIndex(c.execer.GetIndex() + 1)
 	assert.True(t, c.IsAborted())
 }
 
@@ -1560,10 +1561,10 @@ func TestContextAbortWithStatus(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := CreateTestContext(w)
 
-	c.index = 4
+	c.execer.SetIndex(4)
 	c.AbortWithStatus(http.StatusUnauthorized)
 
-	assert.Equal(t, abortIndex, c.index)
+	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.Equal(t, http.StatusUnauthorized, c.Writer.Status())
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.True(t, c.IsAborted())
@@ -1577,7 +1578,7 @@ type testJSONAbortMsg struct {
 func TestContextAbortWithStatusJSON(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := CreateTestContext(w)
-	c.index = 4
+	c.execer.SetIndex(4)
 
 	in := new(testJSONAbortMsg)
 	in.Bar = "barValue"
@@ -1585,7 +1586,7 @@ func TestContextAbortWithStatusJSON(t *testing.T) {
 
 	c.AbortWithStatusJSON(http.StatusUnsupportedMediaType, in)
 
-	assert.Equal(t, abortIndex, c.index)
+	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.Equal(t, http.StatusUnsupportedMediaType, c.Writer.Status())
 	assert.Equal(t, http.StatusUnsupportedMediaType, w.Code)
 	assert.True(t, c.IsAborted())
@@ -1656,7 +1657,7 @@ func TestContextAbortWithError(t *testing.T) {
 	c.AbortWithError(http.StatusUnauthorized, errors.New("bad input")).SetMeta("some input") //nolint: errcheck
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
-	assert.Equal(t, abortIndex, c.index)
+	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.True(t, c.IsAborted())
 }
 
@@ -1800,7 +1801,7 @@ func resetContextForClientIPTests(c *Context) {
 	c.Request.RemoteAddr = "  40.40.40.40:42123 "
 	c.TrustedPlatform = ""
 	// c.engine.trustedCIDRs = defaultTrustedCIDRs
-	c.AppEngine = false
+	// c.AppEngine = false
 }
 
 func TestContextContentType(t *testing.T) {

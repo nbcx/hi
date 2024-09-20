@@ -24,14 +24,14 @@ import (
 )
 
 type IContext interface {
-	New(maxSections, maxParams uint16)
+	New(maxParams uint16)
 	Init(w http.ResponseWriter, req *http.Request)
 	Req() *http.Request
 	Rsp() ResponseWriter
 	Next()
 	WriterMem() *responseWriter
-	SetParams(*Params)
-	GetParams() *Params
+	// SetParams(*Params)
+	// GetParams() *Params
 	// GetSkippedNodes() *[]SkippedNode
 	// SetHandlers(HandlersChain)
 	SetExecer(Execer)
@@ -225,7 +225,7 @@ func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
 
 	i := reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
 	// e := *Engine[IContext](engine)
-	i.New(engine.maxSections, maxParams)
+	i.New(maxParams)
 	return i
 }
 
@@ -414,11 +414,11 @@ func (engine *Engine[T]) addRoute(method, path string, handlers HandlersChain[T]
 	}
 }
 
-func (engine *Engine[T]) GetSkippedNodes() *[]SkippedNode[T] {
-	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
+// func (engine *Engine[T]) GetSkippedNodes() *[]SkippedNode[T] {
+// 	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
 
-	return &skippedNodes
-}
+// 	return &skippedNodes
+// }
 
 // Routes returns a slice of registered routes, including some useful information, such as:
 // the http method, path and the handler name.
@@ -557,17 +557,17 @@ func (engine *Engine[T]) updateRouteTrees() {
 
 // parseIP parse a string representation of an IP and returns a net.IP with the
 // minimum byte representation or nil if input is invalid.
-func parseIP(ip string) net.IP {
-	parsedIP := net.ParseIP(ip)
+// func parseIP(ip string) net.IP {
+// 	parsedIP := net.ParseIP(ip)
 
-	if ipv4 := parsedIP.To4(); ipv4 != nil {
-		// return ip in a 4-byte representation
-		return ipv4
-	}
+// 	if ipv4 := parsedIP.To4(); ipv4 != nil {
+// 		// return ip in a 4-byte representation
+// 		return ipv4
+// 	}
 
-	// return ip in a 16-byte representation or nil
-	return parsedIP
-}
+// 	// return ip in a 16-byte representation or nil
+// 	return parsedIP
+// }
 
 // Run attaches the router to a http.Server and starts listening and serving HTTP requests.
 // It is a shortcut for http.ListenAndServe(addr, router)
@@ -722,7 +722,8 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		rPath = cleanPath(rPath)
 	}
 
-	sk := engine.GetSkippedNodes()
+	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
+	maxParams := make(Params, 0, engine.maxParams)
 
 	// Find root of the tree for the given HTTP method
 	t := engine.trees
@@ -732,11 +733,9 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		}
 		root := t[i].root
 		// Find route in tree
-		value := root.getValue(rPath, c.GetParams(), sk, unescape)
+		value := root.getValue(rPath, &maxParams, &skippedNodes, unescape)
 		if value.params != nil {
-			// todo: need check
-			// c.Params = *value.params
-			c.SetParams(value.params)
+			maxParams = *value.params
 		}
 		if value.handlers != nil {
 			// c.handlers = value.handlers
@@ -768,7 +767,7 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 			if tree.method == httpMethod {
 				continue
 			}
-			if value := tree.root.getValue(rPath, nil, sk, unescape); value.handlers != nil {
+			if value := tree.root.getValue(rPath, nil, &skippedNodes, unescape); value.handlers != nil {
 				allowed = append(allowed, tree.method)
 			}
 		}
