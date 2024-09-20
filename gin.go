@@ -217,26 +217,13 @@ type Engine[T IContext] struct {
 
 var _ IRouter[IContext] = (*Engine[IContext])(nil)
 
-func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
-	// v := make(Params, 0, maxParams)
-	// skippedNodes := make([]skippedNode, 0, engine.maxSections)
-	// todo: wait do
-	// return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
-
-	i := reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
-	// e := *Engine[IContext](engine)
-	i.New()
-	return i
+// Default returns an Engine instance with the Logger and Recovery middleware already attached.
+func Default(opts ...OptionFunc[*Context]) *Engine[*Context] {
+	debugPrintWARNINGDefault()
+	engine := New(&Context{})
+	engine.Use(Logger[*Context](), Recovery[*Context]())
+	return engine.With(opts...)
 }
-
-// func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
-// 	// v := make(Params, 0, maxParams)
-// 	// skippedNodes := make([]skippedNode, 0, engine.maxSections)
-// 	// todo: wait do
-// 	// return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
-// 	t.New(engine, maxParams)
-// 	return t
-// }
 
 // New returns a new blank Engine instance without any middleware attached.
 // By default, the configuration is:
@@ -273,19 +260,16 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 	}
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() any {
-		return engine.allocateContext(t, engine.maxParams)
+		return engine.allocateContext(t)
 	}
 	return engine.With(opts...)
 }
 
-// Default returns an Engine instance with the Logger and Recovery middleware already attached.
-func Default(opts ...OptionFunc[*Context]) *Engine[*Context] {
-	debugPrintWARNINGDefault()
-	engine := New(&Context{})
-	engine.Use(Logger[*Context](), Recovery[*Context]())
-	return engine.With(opts...)
+func (engine *Engine[T]) allocateContext(t T) T {
+	i := reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
+	i.New()
+	return i
 }
-
 func (engine *Engine[T]) Handler() http.Handler {
 	if !engine.UseH2C {
 		return engine
@@ -687,12 +671,11 @@ func (engine *Engine[T]) RunListener(listener net.Listener) (err error) {
 // ServeHTTP conforms to the http.Handler interface.
 func (engine *Engine[T]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := engine.pool.Get().(T)
-	// c.writermem.reset(w)
-	// c.Request = req
 	c.Init(w, req)
 
 	engine.handleHTTPRequest(c)
 
+	// todo: 可自定义后，如果进行缓存，使用时需要额外的注意数据重置
 	engine.pool.Put(c)
 }
 

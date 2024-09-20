@@ -155,7 +155,7 @@ func TestSaveUploadedCreateFailed(t *testing.T) {
 func TestContextReset(t *testing.T) {
 	ctx := &Context{}
 	router := New(ctx)
-	c := router.allocateContext(ctx, 0)
+	c := router.allocateContext(ctx)
 	// assert.Equal(t, c.engine, router)
 
 	c.execer.SetIndex(2)

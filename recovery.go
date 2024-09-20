@@ -26,6 +26,9 @@ var (
 	slash     = []byte("/")
 )
 
+// ErrAbort custom error when user stop request handler manually.
+var ErrAbort = errors.New("user stop run")
+
 // RecoveryFunc defines the function passable to CustomRecovery.
 type RecoveryFunc[T IContext] func(c T, err any)
 
@@ -56,6 +59,10 @@ func CustomRecoveryWithWriter[T IContext](out io.Writer, handle RecoveryFunc[T])
 	return func(c T) {
 		defer func() {
 			if err := recover(); err != nil {
+				// The user actively terminates the operation
+				if errors.Is(err.(error), ErrAbort) {
+					return
+				}
 				// Check for a broken connection, as it is not really a
 				// condition that warrants a panic stack trace.
 				var brokenPipe bool

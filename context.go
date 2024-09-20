@@ -341,6 +341,19 @@ func (c *Context) AbortWithError(code int, err error) *Error {
 	return c.Error(err)
 }
 
+// Die makes panic of USERSTOPRUN error and go to recover function if defined.
+func (c *Context) Die() {
+	panic(ErrAbort)
+}
+
+// AbortWithStatus calls `Abort()` and writes the headers with the specified status code.
+// For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
+func (c *Context) DieWithStatus(code int) {
+	c.Status(code)
+	c.Writer.WriteHeaderNow()
+	c.Die()
+}
+
 /************************************/
 /********* ERROR MANAGEMENT *********/
 /************************************/
