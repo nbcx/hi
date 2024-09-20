@@ -126,7 +126,7 @@ type Context struct {
 	HTMLRender render.HTMLRender
 }
 
-func (c *Context) New(maxParams uint16) {
+func (c *Context) New() {
 	// v := make(Params, 0, maxParams)
 	// en := e.(*Engine[IContext])
 	// skippedNodes := make([]skippedNode, 0, maxSections)

@@ -24,7 +24,7 @@ import (
 )
 
 type IContext interface {
-	New(maxParams uint16)
+	New()
 	Init(w http.ResponseWriter, req *http.Request)
 	Req() *http.Request
 	Rsp() ResponseWriter
@@ -225,7 +225,7 @@ func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
 
 	i := reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
 	// e := *Engine[IContext](engine)
-	i.New(maxParams)
+	i.New()
 	return i
 }
 
