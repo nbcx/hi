@@ -6,7 +6,6 @@ package hi
 
 import (
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"os"
@@ -23,6 +22,39 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
+
+type IContext interface {
+	New(maxSections, maxParams uint16)
+	Init(w http.ResponseWriter, req *http.Request)
+	Req() *http.Request
+	Rsp() ResponseWriter
+	Next()
+	WriterMem() *responseWriter
+	SetParams(*Params)
+	GetParams() *Params
+	// GetSkippedNodes() *[]SkippedNode
+	// SetHandlers(HandlersChain)
+	SetExecer(Execer)
+	GetExecer() Execer
+	// GetIndex() int8
+	// SetIndex(int8)
+
+	SetFullPath(string)
+	Reset()
+	Bind(obj any) error
+	Header(key, value string)
+	AbortWithStatus(code int)
+	Set(key string, value any)
+	GetKeys() map[string]any
+	GetErrors() errorMsgs
+	ClientIP() string
+	JSON(code int, obj any)
+	Abort()
+	Error(err error) *Error
+	Param(key string) string
+	FileFromFS(filepath string, fs http.FileSystem)
+	File(filepath string)
+}
 
 const defaultMultipartMemory = 32 << 20 // 32 MB
 const escapedColon = "\\:"
@@ -51,16 +83,16 @@ var regSafePrefix = regexp.MustCompile("[^a-zA-Z0-9/-]+")
 var regRemoveRepeatedChar = regexp.MustCompile("/{2,}")
 
 // HandlerFunc defines the handler used by gin middleware as return value.
-type HandlerFunc func(*Context)
+type HandlerFunc[T IContext] func(T)
 
 // OptionFunc defines the function to change the default configuration
 type OptionFunc[T IContext] func(*Engine[T])
 
 // HandlersChain defines a HandlerFunc slice.
-type HandlersChain []HandlerFunc
+type HandlersChain[T IContext] []HandlerFunc[T]
 
 // Last returns the last handler in the chain. i.e. the last handler is the main one.
-func (c HandlersChain) Last() HandlerFunc {
+func (c HandlersChain[T]) Last() HandlerFunc[T] {
 	if length := len(c); length > 0 {
 		return c[length-1]
 	}
@@ -68,15 +100,15 @@ func (c HandlersChain) Last() HandlerFunc {
 }
 
 // RouteInfo represents a request route's specification which contains method and path and its handler.
-type RouteInfo struct {
+type RouteInfo[T IContext] struct {
 	Method      string
 	Path        string
 	Handler     string
-	HandlerFunc HandlerFunc
+	HandlerFunc HandlerFunc[T]
 }
 
 // RoutesInfo defines a RouteInfo slice.
-type RoutesInfo []RouteInfo
+type RoutesInfo[T IContext] []RouteInfo[T]
 
 // Trusted platforms
 const (
@@ -170,13 +202,13 @@ type Engine[T IContext] struct {
 	delims render.Delims
 	// secureJSONPrefix string
 	// HTMLRender       render.HTMLRender
-	FuncMap        template.FuncMap
-	allNoRoute     HandlersChain
-	allNoMethod    HandlersChain
-	noRoute        HandlersChain
-	noMethod       HandlersChain
+	// FuncMap        template.FuncMap
+	allNoRoute     HandlersChain[T]
+	allNoMethod    HandlersChain[T]
+	noRoute        HandlersChain[T]
+	noMethod       HandlersChain[T]
 	pool           sync.Pool
-	trees          methodTrees
+	trees          methodTrees[T]
 	maxParams      uint16
 	maxSections    uint16
 	trustedProxies []string
@@ -184,23 +216,6 @@ type Engine[T IContext] struct {
 }
 
 var _ IRouter[IContext] = (*Engine[IContext])(nil)
-
-type IContext interface {
-	New(maxSections, maxParams uint16)
-	Init(w http.ResponseWriter, req *http.Request)
-	Req() *http.Request
-	Rsp() ResponseWriter
-	Next()
-	WriterMem() *responseWriter
-	SetParams(*Params)
-	GetParams() *Params
-	GetSkippedNodes() *[]skippedNode
-	SetHandlers(HandlersChain)
-	SetFullPath(string)
-	GetIndex() int8
-	SetIndex(int8)
-	Reset()
-}
 
 func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
 	// v := make(Params, 0, maxParams)
@@ -239,7 +254,7 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 			basePath: "/",
 			root:     true,
 		},
-		FuncMap:                template.FuncMap{},
+		// FuncMap:                template.FuncMap{},
 		RedirectTrailingSlash:  true,
 		RedirectFixedPath:      false,
 		HandleMethodNotAllowed: false,
@@ -250,7 +265,7 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 		RemoveExtraSlash:   false,
 		UnescapePathValues: true,
 		// MaxMultipartMemory: defaultMultipartMemory,
-		trees:  make(methodTrees, 0, 9),
+		trees:  make(methodTrees[T], 0, 9),
 		delims: render.Delims{Left: "{{", Right: "}}"},
 		// secureJSONPrefix: "while(1);",
 		trustedProxies: []string{"0.0.0.0/0", "::/0"},
@@ -267,7 +282,7 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 func Default(opts ...OptionFunc[*Context]) *Engine[*Context] {
 	debugPrintWARNINGDefault()
 	engine := New(&Context{})
-	engine.Use(Logger(), Recovery())
+	engine.Use(Logger[*Context](), Recovery[*Context]())
 	return engine.With(opts...)
 }
 
@@ -332,18 +347,18 @@ func (engine *Engine[T]) Delims(left, right string) *Engine[T] {
 // }
 
 // SetFuncMap sets the FuncMap used for template.FuncMap.
-func (engine *Engine[T]) SetFuncMap(funcMap template.FuncMap) {
-	engine.FuncMap = funcMap
-}
+// func (engine *Engine[T]) SetFuncMap(funcMap template.FuncMap) {
+// 	engine.FuncMap = funcMap
+// }
 
 // NoRoute adds handlers for NoRoute. It returns a 404 code by default.
-func (engine *Engine[T]) NoRoute(handlers ...HandlerFunc) {
+func (engine *Engine[T]) NoRoute(handlers ...HandlerFunc[T]) {
 	engine.noRoute = handlers
 	engine.rebuild404Handlers()
 }
 
 // NoMethod sets the handlers called when Engine.HandleMethodNotAllowed = true.
-func (engine *Engine[T]) NoMethod(handlers ...HandlerFunc) {
+func (engine *Engine[T]) NoMethod(handlers ...HandlerFunc[T]) {
 	engine.noMethod = handlers
 	engine.rebuild405Handlers()
 }
@@ -351,7 +366,7 @@ func (engine *Engine[T]) NoMethod(handlers ...HandlerFunc) {
 // Use attaches a global middleware to the router. i.e. the middleware attached through Use() will be
 // included in the handlers chain for every single request. Even 404, 405, static files...
 // For example, this is the right place for a logger or error management middleware.
-func (engine *Engine[T]) Use(middleware ...HandlerFunc) IRoutes[T] {
+func (engine *Engine[T]) Use(middleware ...HandlerFunc[T]) IRoutes[T] {
 	engine.RouterGroup.Use(middleware...)
 	engine.rebuild404Handlers()
 	engine.rebuild405Handlers()
@@ -375,7 +390,7 @@ func (engine *Engine[T]) rebuild405Handlers() {
 	engine.allNoMethod = engine.combineHandlers(engine.noMethod)
 }
 
-func (engine *Engine[T]) addRoute(method, path string, handlers HandlersChain) {
+func (engine *Engine[T]) addRoute(method, path string, handlers HandlersChain[T]) {
 	assert1(path[0] == '/', "path must begin with '/'")
 	assert1(method != "", "HTTP method can not be empty")
 	assert1(len(handlers) > 0, "there must be at least one handler")
@@ -384,9 +399,9 @@ func (engine *Engine[T]) addRoute(method, path string, handlers HandlersChain) {
 
 	root := engine.trees.get(method)
 	if root == nil {
-		root = new(node)
+		root = new(node[T])
 		root.fullPath = "/"
-		engine.trees = append(engine.trees, methodTree{method: method, root: root})
+		engine.trees = append(engine.trees, MethodTree[T]{method: method, root: root})
 	}
 	root.addRoute(path, handlers)
 
@@ -399,20 +414,26 @@ func (engine *Engine[T]) addRoute(method, path string, handlers HandlersChain) {
 	}
 }
 
+func (engine *Engine[T]) GetSkippedNodes() *[]SkippedNode[T] {
+	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
+
+	return &skippedNodes
+}
+
 // Routes returns a slice of registered routes, including some useful information, such as:
 // the http method, path and the handler name.
-func (engine *Engine[T]) Routes() (routes RoutesInfo) {
+func (engine *Engine[T]) Routes() (routes RoutesInfo[T]) {
 	for _, tree := range engine.trees {
 		routes = iterate("", tree.method, routes, tree.root)
 	}
 	return routes
 }
 
-func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
+func iterate[T IContext](path, method string, routes RoutesInfo[T], root *node[T]) RoutesInfo[T] {
 	path += root.path
 	if len(root.handlers) > 0 {
 		handlerFunc := root.handlers.Last()
-		routes = append(routes, RouteInfo{
+		routes = append(routes, RouteInfo[T]{
 			Method:      method,
 			Path:        path,
 			Handler:     nameOfFunction(handlerFunc),
@@ -515,7 +536,7 @@ func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
 // }
 
 // updateRouteTree do update to the route tree recursively
-func updateRouteTree(n *node) {
+func updateRouteTree[T IContext](n *node[T]) {
 	n.path = strings.ReplaceAll(n.path, escapedColon, colon)
 	n.fullPath = strings.ReplaceAll(n.fullPath, escapedColon, colon)
 	n.indices = strings.ReplaceAll(n.indices, backslash, colon)
@@ -679,12 +700,12 @@ func (engine *Engine[T]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // This can be done by setting c.Request.URL.Path to your new target.
 // Disclaimer: You can loop yourself to deal with this, use wisely.
 func (engine *Engine[T]) HandleContext(c T) {
-	oldIndexValue := c.GetIndex()
+	oldIndexValue := c.GetExecer().GetIndex()
 	c.Reset() // todo: small reset
 	engine.handleHTTPRequest(c)
 
 	// c.index = oldIndexValue
-	c.SetIndex(oldIndexValue)
+	c.GetExecer().SetIndex(oldIndexValue)
 }
 
 func (engine *Engine[T]) handleHTTPRequest(c T) {
@@ -701,6 +722,8 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		rPath = cleanPath(rPath)
 	}
 
+	sk := engine.GetSkippedNodes()
+
 	// Find root of the tree for the given HTTP method
 	t := engine.trees
 	for i, tl := 0, len(t); i < tl; i++ {
@@ -709,7 +732,7 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		}
 		root := t[i].root
 		// Find route in tree
-		value := root.getValue(rPath, c.GetParams(), c.GetSkippedNodes(), unescape)
+		value := root.getValue(rPath, c.GetParams(), sk, unescape)
 		if value.params != nil {
 			// todo: need check
 			// c.Params = *value.params
@@ -718,7 +741,8 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		if value.handlers != nil {
 			// c.handlers = value.handlers
 			// c.fullPath = value.fullPath
-			c.SetHandlers(value.handlers)
+			c.SetExecer(NewExecer(c, value.handlers))
+			// c.SetHandlers(value.handlers)
 			c.SetFullPath(value.fullPath)
 			c.Next()
 			c.WriterMem().WriteHeaderNow()
@@ -744,13 +768,13 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 			if tree.method == httpMethod {
 				continue
 			}
-			if value := tree.root.getValue(rPath, nil, c.GetSkippedNodes(), unescape); value.handlers != nil {
+			if value := tree.root.getValue(rPath, nil, sk, unescape); value.handlers != nil {
 				allowed = append(allowed, tree.method)
 			}
 		}
 		if len(allowed) > 0 {
 			// c.handlers = engine.allNoMethod
-			c.SetHandlers(engine.allNoMethod)
+			c.SetExecer(NewExecer(c, engine.allNoMethod))
 			c.WriterMem().Header().Set("Allow", strings.Join(allowed, ", "))
 			serveError(c, http.StatusMethodNotAllowed, default405Body)
 			return
@@ -758,7 +782,7 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 	}
 
 	// c.handlers = engine.allNoRoute
-	c.SetHandlers(engine.allNoRoute)
+	c.SetExecer(NewExecer(c, engine.allNoRoute))
 	serveError(c, http.StatusNotFound, default404Body)
 }
 
@@ -797,7 +821,7 @@ func redirectTrailingSlash[T IContext](c T) {
 	redirectRequest(c)
 }
 
-func redirectFixedPath[T IContext](c T, root *node, trailingSlash bool) bool {
+func redirectFixedPath[T IContext](c T, root *node[T], trailingSlash bool) bool {
 	req := c.Req()
 	rPath := req.URL.Path
 

@@ -22,7 +22,7 @@ func init() {
 func TestLogger(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(LoggerWithWriter(buffer))
+	router.Use(LoggerWithWriter[*Context](buffer))
 	router.GET("/example", func(c *Context) {})
 	router.POST("/example", func(c *Context) {})
 	router.PUT("/example", func(c *Context) {})
@@ -86,7 +86,7 @@ func TestLogger(t *testing.T) {
 func TestLoggerWithConfig(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(LoggerWithConfig(LoggerConfig{Output: buffer}))
+	router.Use(LoggerWithConfig[*Context](LoggerConfig{Output: buffer}))
 	router.GET("/example", func(c *Context) {})
 	router.POST("/example", func(c *Context) {})
 	router.PUT("/example", func(c *Context) {})
@@ -157,7 +157,7 @@ func TestLoggerWithFormatter(t *testing.T) {
 	}()
 
 	router := New(&Context{})
-	router.Use(LoggerWithFormatter(func(param LogFormatterParams) string {
+	router.Use(LoggerWithFormatter[*Context](func(param LogFormatterParams) string {
 		return fmt.Sprintf("[FORMATTER TEST] %v | %3d | %13v | %15s | %-7s %#v\n%s",
 			param.TimeStamp.Format("2006/01/02 - 15:04:05"),
 			param.StatusCode,
@@ -187,7 +187,7 @@ func TestLoggerWithConfigFormatting(t *testing.T) {
 	router := New(&Context{})
 	// router.engine.trustedCIDRs, _ = router.engine.prepareTrustedCIDRs()
 
-	router.Use(LoggerWithConfig(LoggerConfig{
+	router.Use(LoggerWithConfig[*Context](LoggerConfig{
 		Output: buffer,
 		Formatter: func(param LogFormatterParams) string {
 			// for assert test
@@ -357,7 +357,7 @@ func TestIsOutputColor(t *testing.T) {
 
 func TestErrorLogger(t *testing.T) {
 	router := New(&Context{})
-	router.Use(ErrorLogger())
+	router.Use(ErrorLogger[*Context]())
 	router.GET("/error", func(c *Context) {
 		c.Error(errors.New("this is an error")) //nolint: errcheck
 	})
@@ -385,7 +385,7 @@ func TestErrorLogger(t *testing.T) {
 func TestLoggerWithWriterSkippingPaths(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(LoggerWithWriter(buffer, "/skipped"))
+	router.Use(LoggerWithWriter[*Context](buffer, "/skipped"))
 	router.GET("/logged", func(c *Context) {})
 	router.GET("/skipped", func(c *Context) {})
 
@@ -400,7 +400,7 @@ func TestLoggerWithWriterSkippingPaths(t *testing.T) {
 func TestLoggerWithConfigSkippingPaths(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(LoggerWithConfig(LoggerConfig{
+	router.Use(LoggerWithConfig[*Context](LoggerConfig{
 		Output:    buffer,
 		SkipPaths: []string{"/skipped"},
 	}))
@@ -418,10 +418,10 @@ func TestLoggerWithConfigSkippingPaths(t *testing.T) {
 func TestLoggerWithConfigSkipper(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(LoggerWithConfig(LoggerConfig{
+	router.Use(LoggerWithConfig[*Context](LoggerConfig{
 		Output: buffer,
-		Skip: func(c *Context) bool {
-			return c.Writer.Status() == http.StatusNoContent
+		Skip: func(c IContext) bool {
+			return c.Rsp().Status() == http.StatusNoContent
 		},
 	}))
 	router.GET("/logged", func(c *Context) { c.Status(http.StatusOK) })

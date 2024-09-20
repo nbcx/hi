@@ -37,8 +37,8 @@ func (t *testStruct) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 func TestWrap(t *testing.T) {
 	router := New(&Context{})
-	router.POST("/path", WrapH(&testStruct{t}))
-	router.GET("/path2", WrapF(func(w http.ResponseWriter, req *http.Request) {
+	router.POST("/path", WrapH[*Context](&testStruct{t}))
+	router.GET("/path2", WrapF[*Context](func(w http.ResponseWriter, req *http.Request) {
 		assert.Equal(t, "GET", req.Method)
 		assert.Equal(t, "/path2", req.URL.Path)
 		w.WriteHeader(http.StatusBadRequest)
@@ -115,7 +115,7 @@ func TestBindMiddleware(t *testing.T) {
 	var value *bindTestStruct
 	var called bool
 	router := New(&Context{})
-	router.GET("/", Bind(bindTestStruct{}), func(c *Context) {
+	router.GET("/", Bind[*Context](bindTestStruct{}), func(c *Context) {
 		called = true
 		value = c.MustGet(BindKey).(*bindTestStruct)
 	})
@@ -129,7 +129,7 @@ func TestBindMiddleware(t *testing.T) {
 	assert.False(t, called)
 
 	assert.Panics(t, func() {
-		Bind(&bindTestStruct{})
+		Bind[*Context](&bindTestStruct{})
 	})
 }
 

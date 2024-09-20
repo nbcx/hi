@@ -60,7 +60,7 @@ func TestDebugPrintError(t *testing.T) {
 func TestDebugPrintRoutes(t *testing.T) {
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintRoute("GET", "/path/to/route/:param", HandlersChain{func(c *Context) {}, handlerNameTest})
+		debugPrintRoute("GET", "/path/to/route/:param", HandlersChain[*Context]{func(c *Context) {}, handlerNameTest})
 		SetMode(TestMode)
 	})
 	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param     --> (.*/vendor/)?github.com/nbcx/hi.handlerNameTest \(2 handlers\)\n$`, re)
@@ -72,7 +72,7 @@ func TestDebugPrintRouteFunc(t *testing.T) {
 	}
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintRoute("GET", "/path/to/route/:param1/:param2", HandlersChain{func(c *Context) {}, handlerNameTest})
+		debugPrintRoute("GET", "/path/to/route/:param1/:param2", HandlersChain[*Context]{func(c *Context) {}, handlerNameTest})
 		SetMode(TestMode)
 	})
 	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param1/:param2           --> (.*/vendor/)?github.com/nbcx/hi.handlerNameTest \(2 handlers\)\n$`, re)

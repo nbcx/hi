@@ -15,8 +15,8 @@ import (
 // Used as a workaround since we can't compare functions or their addresses
 var fakeHandlerValue string
 
-func fakeHandler(val string) HandlersChain {
-	return HandlersChain{func(c *Context) {
+func fakeHandler(val string) HandlersChain[*Context] {
+	return HandlersChain[*Context]{func(c *Context) {
 		fakeHandlerValue = val
 	}}
 }
@@ -33,12 +33,12 @@ func getParams() *Params {
 	return &ps
 }
 
-func getSkippedNodes() *[]skippedNode {
-	ps := make([]skippedNode, 0, 20)
+func getSkippedNodes() *[]SkippedNode[*Context] {
+	ps := make([]SkippedNode[*Context], 0, 20)
 	return &ps
 }
 
-func checkRequests(t *testing.T, tree *node, requests testRequests, unescapes ...bool) {
+func checkRequests(t *testing.T, tree *node[*Context], requests testRequests, unescapes ...bool) {
 	unescape := false
 	if len(unescapes) >= 1 {
 		unescape = unescapes[0]
@@ -69,7 +69,7 @@ func checkRequests(t *testing.T, tree *node, requests testRequests, unescapes ..
 	}
 }
 
-func checkPriorities(t *testing.T, n *node) uint32 {
+func checkPriorities(t *testing.T, n *node[*Context]) uint32 {
 	var prio uint32
 	for i := range n.children {
 		prio += checkPriorities(t, n.children[i])
@@ -99,7 +99,7 @@ func TestCountParams(t *testing.T) {
 }
 
 func TestTreeAddAndGet(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/hi",
@@ -136,7 +136,7 @@ func TestTreeAddAndGet(t *testing.T) {
 }
 
 func TestTreeWildcard(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/",
@@ -323,7 +323,7 @@ func TestTreeWildcard(t *testing.T) {
 }
 
 func TestUnescapeParameters(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/",
@@ -374,7 +374,7 @@ type testRoute struct {
 }
 
 func testRoutes(t *testing.T, routes []testRoute) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	for _, route := range routes {
 		recv := catchPanic(func() {
@@ -455,7 +455,7 @@ func TestTreeChildConflict(t *testing.T) {
 }
 
 func TestTreeDuplicatePath(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/",
@@ -493,7 +493,7 @@ func TestTreeDuplicatePath(t *testing.T) {
 }
 
 func TestEmptyWildcardName(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/user:",
@@ -531,7 +531,7 @@ func TestTreeCatchAllConflictRoot(t *testing.T) {
 }
 
 func TestTreeCatchMaxParams(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 	var route = "/cmd/*filepath"
 	tree.addRoute(route, fakeHandler(route))
 }
@@ -546,7 +546,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		tree := &node{}
+		tree := &node[*Context]{}
 		recv := catchPanic(func() {
 			tree.addRoute(route, nil)
 		})
@@ -568,7 +568,7 @@ func TestTreeDoubleWildcard(t *testing.T) {
 }*/
 
 func TestTreeTrailingSlashRedirect(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	routes := [...]string{
 		"/hi",
@@ -674,7 +674,7 @@ func TestTreeTrailingSlashRedirect(t *testing.T) {
 }
 
 func TestTreeRootTrailingSlashRedirect(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	recv := catchPanic(func() {
 		tree.addRoute("/:test", fakeHandler("/:test"))
@@ -700,7 +700,7 @@ func TestRedirectTrailingSlash(t *testing.T) {
 		{"/hello/:name/234"},
 	}
 
-	node := &node{}
+	node := &node[*Context]{}
 	for _, item := range data {
 		node.addRoute(item.path, fakeHandler("test"))
 	}
@@ -712,7 +712,7 @@ func TestRedirectTrailingSlash(t *testing.T) {
 }
 
 func TestTreeFindCaseInsensitivePath(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 
 	longPath := "/l" + strings.Repeat("o", 128) + "ng"
 	lOngPath := "/l" + strings.Repeat("O", 128) + "ng/"
@@ -874,7 +874,7 @@ func TestTreeFindCaseInsensitivePath(t *testing.T) {
 func TestTreeInvalidNodeType(t *testing.T) {
 	const panicMsg = "invalid node type"
 
-	tree := &node{}
+	tree := &node[*Context]{}
 	tree.addRoute("/", fakeHandler("/"))
 	tree.addRoute("/:page", fakeHandler("/:page"))
 
@@ -899,7 +899,7 @@ func TestTreeInvalidNodeType(t *testing.T) {
 }
 
 func TestTreeInvalidParamsType(t *testing.T) {
-	tree := &node{}
+	tree := &node[*Context]{}
 	// add a child with wildcard
 	route := "/:path"
 	tree.addRoute(route, fakeHandler(route))
@@ -920,7 +920,7 @@ func TestTreeExpandParamsCapacity(t *testing.T) {
 	}
 
 	for _, item := range data {
-		tree := &node{}
+		tree := &node[*Context]{}
 		tree.addRoute(item.path, fakeHandler(item.path))
 		params := make(Params, 0)
 
@@ -956,7 +956,7 @@ func TestTreeWildcardConflictEx(t *testing.T) {
 		// I have to re-create a 'tree', because the 'tree' will be
 		// in an inconsistent state when the loop recovers from the
 		// panic which threw by 'addRoute' function.
-		tree := &node{}
+		tree := &node[*Context]{}
 		routes := [...]string{
 			"/con:tact",
 			"/who/are/*you",
@@ -983,7 +983,7 @@ func TestTreeInvalidEscape(t *testing.T) {
 		"/r2/:r":   true,
 		"/r3/\\:r": true,
 	}
-	tree := &node{}
+	tree := &node[*Context]{}
 	for route, valid := range routes {
 		recv := catchPanic(func() {
 			tree.addRoute(route, fakeHandler(route))

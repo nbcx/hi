@@ -7,7 +7,6 @@ package hi
 import (
 	"crypto/tls"
 	"fmt"
-	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -37,9 +36,9 @@ func setupHTMLFiles(t *testing.T, mode string, tls bool, loadMethod func(*Engine
 	captureOutput(t, func() {
 		router = New(&Context{})
 		router.Delims("{[{", "}]}")
-		router.SetFuncMap(template.FuncMap{
-			"formatAsDate": formatAsDate,
-		})
+		// router.SetFuncMap(template.FuncMap{
+		// 	"formatAsDate": formatAsDate,
+		// })
 		loadMethod(router)
 		router.GET("/test", func(c *Context) {
 			c.HTML(http.StatusOK, "hello.tmpl", map[string]string{"name": "world"})
@@ -327,31 +326,31 @@ func TestCreateEngine(t *testing.T) {
 
 func TestAddRoute(t *testing.T) {
 	router := New(&Context{})
-	router.addRoute("GET", "/", HandlersChain{func(_ *Context) {}})
+	router.addRoute("GET", "/", HandlersChain[*Context]{func(_ *Context) {}})
 
 	assert.Len(t, router.trees, 1)
 	assert.NotNil(t, router.trees.get("GET"))
 	assert.Nil(t, router.trees.get("POST"))
 
-	router.addRoute("POST", "/", HandlersChain{func(_ *Context) {}})
+	router.addRoute("POST", "/", HandlersChain[*Context]{func(_ *Context) {}})
 
 	assert.Len(t, router.trees, 2)
 	assert.NotNil(t, router.trees.get("GET"))
 	assert.NotNil(t, router.trees.get("POST"))
 
-	router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+	router.addRoute("POST", "/post", HandlersChain[*Context]{func(_ *Context) {}})
 	assert.Len(t, router.trees, 2)
 }
 
 func TestAddRouteFails(t *testing.T) {
 	router := New(&Context{})
-	assert.Panics(t, func() { router.addRoute("", "/", HandlersChain{func(_ *Context) {}}) })
-	assert.Panics(t, func() { router.addRoute("GET", "a", HandlersChain{func(_ *Context) {}}) })
-	assert.Panics(t, func() { router.addRoute("GET", "/", HandlersChain{}) })
+	assert.Panics(t, func() { router.addRoute("", "/", HandlersChain[*Context]{func(_ *Context) {}}) })
+	assert.Panics(t, func() { router.addRoute("GET", "a", HandlersChain[*Context]{func(_ *Context) {}}) })
+	assert.Panics(t, func() { router.addRoute("GET", "/", HandlersChain[*Context]{}) })
 
-	router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+	router.addRoute("POST", "/post", HandlersChain[*Context]{func(_ *Context) {}})
 	assert.Panics(t, func() {
-		router.addRoute("POST", "/post", HandlersChain{func(_ *Context) {}})
+		router.addRoute("POST", "/post", HandlersChain[*Context]{func(_ *Context) {}})
 	})
 }
 
@@ -361,8 +360,8 @@ func TestCreateDefaultRouter(t *testing.T) {
 }
 
 func TestNoRouteWithoutGlobalHandlers(t *testing.T) {
-	var middleware0 HandlerFunc = func(c *Context) {}
-	var middleware1 HandlerFunc = func(c *Context) {}
+	var middleware0 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware1 HandlerFunc[*Context] = func(c *Context) {}
 
 	router := New(&Context{})
 
@@ -383,9 +382,9 @@ func TestNoRouteWithoutGlobalHandlers(t *testing.T) {
 }
 
 func TestNoRouteWithGlobalHandlers(t *testing.T) {
-	var middleware0 HandlerFunc = func(c *Context) {}
-	var middleware1 HandlerFunc = func(c *Context) {}
-	var middleware2 HandlerFunc = func(c *Context) {}
+	var middleware0 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware1 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware2 HandlerFunc[*Context] = func(c *Context) {}
 
 	router := New(&Context{})
 	router.Use(middleware2)
@@ -414,8 +413,8 @@ func TestNoRouteWithGlobalHandlers(t *testing.T) {
 }
 
 func TestNoMethodWithoutGlobalHandlers(t *testing.T) {
-	var middleware0 HandlerFunc = func(c *Context) {}
-	var middleware1 HandlerFunc = func(c *Context) {}
+	var middleware0 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware1 HandlerFunc[*Context] = func(c *Context) {}
 
 	router := New(&Context{})
 
@@ -439,9 +438,9 @@ func TestRebuild404Handlers(t *testing.T) {
 }
 
 func TestNoMethodWithGlobalHandlers(t *testing.T) {
-	var middleware0 HandlerFunc = func(c *Context) {}
-	var middleware1 HandlerFunc = func(c *Context) {}
-	var middleware2 HandlerFunc = func(c *Context) {}
+	var middleware0 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware1 HandlerFunc[*Context] = func(c *Context) {}
+	var middleware2 HandlerFunc[*Context] = func(c *Context) {}
 
 	router := New(&Context{})
 	router.Use(middleware2)
@@ -492,27 +491,27 @@ func TestListOfRoutes(t *testing.T) {
 	list := router.Routes()
 
 	assert.Len(t, list, 7)
-	assertRoutePresent(t, list, RouteInfo{
+	assertRoutePresent(t, list, RouteInfo[*Context]{
 		Method:  "GET",
 		Path:    "/favicon.ico",
 		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
-	assertRoutePresent(t, list, RouteInfo{
+	assertRoutePresent(t, list, RouteInfo[*Context]{
 		Method:  "GET",
 		Path:    "/",
 		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
-	assertRoutePresent(t, list, RouteInfo{
+	assertRoutePresent(t, list, RouteInfo[*Context]{
 		Method:  "GET",
 		Path:    "/users/",
 		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest2$",
 	})
-	assertRoutePresent(t, list, RouteInfo{
+	assertRoutePresent(t, list, RouteInfo[*Context]{
 		Method:  "GET",
 		Path:    "/users/:id",
 		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest1$",
 	})
-	assertRoutePresent(t, list, RouteInfo{
+	assertRoutePresent(t, list, RouteInfo[*Context]{
 		Method:  "POST",
 		Path:    "/users/:id",
 		Handler: "^(.*/vendor/)?github.com/nbcx/hi.handlerTest2$",
@@ -686,7 +685,7 @@ func parseCIDR(cidr string) *net.IPNet {
 	return parsedCIDR
 }
 
-func assertRoutePresent(t *testing.T, gotRoutes RoutesInfo, wantRoute RouteInfo) {
+func assertRoutePresent(t *testing.T, gotRoutes RoutesInfo[*Context], wantRoute RouteInfo[*Context]) {
 	for _, gotRoute := range gotRoutes {
 		if gotRoute.Path == wantRoute.Path && gotRoute.Method == wantRoute.Method {
 			assert.Regexp(t, wantRoute.Handler, gotRoute.Handler)
@@ -712,8 +711,8 @@ func TestNewOptionFunc(t *testing.T) {
 	r := New(&Context{}, fc)
 
 	routes := r.Routes()
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
+	assertRoutePresent(t, routes, RouteInfo[*Context]{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
+	assertRoutePresent(t, routes, RouteInfo[*Context]{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
 }
 
 func TestWithOptionFunc(t *testing.T) {
@@ -729,8 +728,8 @@ func TestWithOptionFunc(t *testing.T) {
 	})
 
 	routes := r.Routes()
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
-	assertRoutePresent(t, routes, RouteInfo{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
+	assertRoutePresent(t, routes, RouteInfo[*Context]{Path: "/test1", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest1"})
+	assertRoutePresent(t, routes, RouteInfo[*Context]{Path: "/test2", Method: "GET", Handler: "github.com/nbcx/hi.handlerTest2"})
 }
 
 type Birthday string

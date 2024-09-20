@@ -20,7 +20,7 @@ func TestPanicClean(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
 	password := "my-super-secret-password"
-	router.Use(RecoveryWithWriter(buffer))
+	router.Use(RecoveryWithWriter[*Context](buffer))
 	router.GET("/recovery", func(c *Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		panic("Oupps, Houston, we have a problem")
@@ -51,7 +51,7 @@ func TestPanicClean(t *testing.T) {
 func TestPanicInHandler(t *testing.T) {
 	buffer := new(strings.Builder)
 	router := New(&Context{})
-	router.Use(RecoveryWithWriter(buffer))
+	router.Use(RecoveryWithWriter[*Context](buffer))
 	router.GET("/recovery", func(_ *Context) {
 		panic("Oupps, Houston, we have a problem")
 	})
@@ -78,7 +78,7 @@ func TestPanicInHandler(t *testing.T) {
 // TestPanicWithAbort assert that panic has been recovered even if context.Abort was used.
 func TestPanicWithAbort(t *testing.T) {
 	router := New(&Context{})
-	router.Use(RecoveryWithWriter(nil))
+	router.Use(RecoveryWithWriter[*Context](nil))
 	router.GET("/recovery", func(c *Context) {
 		c.AbortWithStatus(http.StatusBadRequest)
 		panic("Oupps, Houston, we have a problem")
@@ -124,7 +124,7 @@ func TestPanicWithBrokenPipe(t *testing.T) {
 			var buf strings.Builder
 
 			router := New(&Context{})
-			router.Use(RecoveryWithWriter(&buf))
+			router.Use(RecoveryWithWriter[*Context](&buf))
 			router.GET("/recovery", func(c *Context) {
 				// Start writing response
 				c.Header("X-Test", "Value")

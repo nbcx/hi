@@ -27,7 +27,7 @@ var DebugPrintRouteFunc func(httpMethod, absolutePath, handlerName string, nuHan
 // DebugPrintFunc indicates debug log output format.
 var DebugPrintFunc func(format string, values ...interface{})
 
-func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain) {
+func debugPrintRoute[T IContext](httpMethod, absolutePath string, handlers HandlersChain[T]) {
 	if IsDebugging() {
 		nuHandlers := len(handlers)
 		handlerName := nameOfFunction(handlers.Last())

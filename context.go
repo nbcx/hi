@@ -60,14 +60,15 @@ type Context struct {
 	Request   *http.Request
 	Writer    ResponseWriter
 
-	Params   Params
-	handlers HandlersChain
-	index    int8
+	Params Params
+	// handlers HandlersChain[*Context]
+	execer Execer // todo: test
+	// index    int8
 	fullPath string
 
 	// engine       *Engine[IContext] // todo: need check
-	params       *Params
-	skippedNodes *[]skippedNode
+	params *Params
+	// skippedNodes *[]skippedNode
 
 	// This mutex protects Keys map.
 	mu sync.RWMutex
@@ -129,11 +130,11 @@ type Context struct {
 func (c *Context) New(maxSections, maxParams uint16) {
 	v := make(Params, 0, maxParams)
 	// en := e.(*Engine[IContext])
-	skippedNodes := make([]skippedNode, 0, maxSections)
+	// skippedNodes := make([]skippedNode, 0, maxSections)
 
 	// c.engine = en
 	c.params = &v
-	c.skippedNodes = &skippedNodes
+	// c.skippedNodes = &skippedNodes
 	c.ForwardedByClientIP = true
 	c.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
 	c.TrustedPlatform = defaultPlatform
@@ -150,22 +151,28 @@ func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
 	c.Reset()
 }
 
-func (c *Context) Req() *http.Request                 { return c.Request }
-func (c *Context) WriterMem() *responseWriter         { return &c.writermem }
-func (c *Context) Rsp() ResponseWriter                { return c.Writer }
-func (c *Context) SetParams(ps *Params)               { c.params = ps }
-func (c *Context) GetParams() *Params                 { return c.params }
-func (c *Context) GetSkippedNodes() *[]skippedNode    { return c.skippedNodes }
-func (c *Context) SetHandlers(handlers HandlersChain) { c.handlers = handlers }
-func (c *Context) SetFullPath(fullPath string)        { c.fullPath = fullPath }
-func (c *Context) GetIndex() int8                     { return c.index }
-func (c *Context) SetIndex(index int8)                { c.index = index }
+func (c *Context) Req() *http.Request         { return c.Request }
+func (c *Context) WriterMem() *responseWriter { return &c.writermem }
+func (c *Context) Rsp() ResponseWriter        { return c.Writer }
+func (c *Context) SetParams(ps *Params)       { c.params = ps }
+func (c *Context) GetParams() *Params         { return c.params }
 
+// func (c *Context) GetSkippedNodes() *[]skippedNode              { return c.skippedNodes }
+// func (c *Context) SetHandlers(handlers HandlersChain[*Context]) { c.handlers = handlers }
+func (c *Context) SetExecer(execer Execer)     { c.execer = execer }
+func (c *Context) GetExecer() Execer           { return c.execer }
+func (c *Context) SetFullPath(fullPath string) { c.fullPath = fullPath }
+
+// func (c *Context) GetIndex() int8              { return c.index }
+// func (c *Context) SetIndex(index int8)         { c.index = index }
+func (c *Context) GetKeys() map[string]any { return c.Keys }
+func (c *Context) GetErrors() errorMsgs    { return c.Errors }
 func (c *Context) Reset() {
 	c.Writer = &c.writermem
 	c.Params = c.Params[:0]
-	c.handlers = nil
-	c.index = -1
+	// c.handlers = nil
+	c.execer = nil
+	// c.index = -1
 
 	c.fullPath = ""
 	c.Keys = nil
@@ -175,7 +182,7 @@ func (c *Context) Reset() {
 	c.formCache = nil
 	c.sameSite = 0
 	*c.params = (*c.params)[:0]
-	*c.skippedNodes = (*c.skippedNodes)[:0]
+	// *c.skippedNodes = (*c.skippedNodes)[:0]
 }
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
@@ -189,8 +196,9 @@ func (c *Context) Copy() *Context {
 
 	cp.writermem.ResponseWriter = nil
 	cp.Writer = &cp.writermem
-	cp.index = abortIndex
-	cp.handlers = nil
+	// cp.index = abortIndex
+	cp.GetExecer().SetIndex(abortIndex)
+	cp.execer = nil
 	cp.fullPath = c.fullPath
 
 	cKeys := c.Keys
@@ -211,25 +219,31 @@ func (c *Context) Copy() *Context {
 // HandlerName returns the main handler's name. For example if the handler is "handleGetUsers()",
 // this function will return "main.handleGetUsers".
 func (c *Context) HandlerName() string {
-	return nameOfFunction(c.handlers.Last())
+	// todo: wait check need
+	// return nameOfFunction(c.handlers.Last())
+	return ""
 }
 
 // HandlerNames returns a list of all registered handlers for this context in descending order,
 // following the semantics of HandlerName()
 func (c *Context) HandlerNames() []string {
-	hn := make([]string, 0, len(c.handlers))
-	for _, val := range c.handlers {
-		if val == nil {
-			continue
-		}
-		hn = append(hn, nameOfFunction(val))
-	}
-	return hn
+	// todo: wait check need
+	// hn := make([]string, 0, len(c.handlers))
+	// for _, val := range c.handlers {
+	// 	if val == nil {
+	// 		continue
+	// 	}
+	// 	hn = append(hn, nameOfFunction(val))
+	// }
+	// return hn
+	return nil
 }
 
 // Handler returns the main handler.
-func (c *Context) Handler() HandlerFunc {
-	return c.handlers.Last()
+func (c *Context) Handler() HandlerFunc[*Context] {
+	// todo: wait check need
+	// return c.handlers.Last()
+	return nil
 }
 
 // FullPath returns a matched route full path. For not found routes
@@ -250,19 +264,59 @@ func (c *Context) FullPath() string {
 // It executes the pending handlers in the chain inside the calling handler.
 // See example in GitHub.
 func (c *Context) Next() {
+	// c.index++
+	// for c.index < int8(len(c.handlers)) {
+	// 	if c.handlers[c.index] == nil {
+	// 		continue
+	// 	}
+	// 	c.handlers[c.index](c)
+	// 	c.index++
+	// }
+
+	// todo: wait check and do
+	c.execer.Next()
+}
+
+// todo: wait check
+type Execer interface {
+	Next()
+	GetIndex() int8
+	SetIndex(int8)
+}
+
+func NewExecer[T IContext](ctx T, handlers HandlersChain[T]) Execer {
+	return &Exec[T]{ctx: ctx, handlers: handlers, index: -1}
+}
+
+type Exec[T IContext] struct {
+	index    int8
+	handlers HandlersChain[T]
+	ctx      T
+}
+
+func (c *Exec[T]) GetIndex() int8 {
+	return c.index
+}
+
+func (c *Exec[T]) SetIndex(index int8) {
+	c.index = index
+}
+
+func (c *Exec[T]) Next() {
 	c.index++
 	for c.index < int8(len(c.handlers)) {
 		if c.handlers[c.index] == nil {
 			continue
 		}
-		c.handlers[c.index](c)
+		c.handlers[c.index](c.ctx)
 		c.index++
 	}
 }
 
 // IsAborted returns true if the current context was aborted.
 func (c *Context) IsAborted() bool {
-	return c.index >= abortIndex
+	return c.execer.GetIndex() >= abortIndex
+	// return c.index >= abortIndex
 }
 
 // Abort prevents pending handlers from being called. Note that this will not stop the current handler.
@@ -270,7 +324,8 @@ func (c *Context) IsAborted() bool {
 // If the authorization fails (ex: the password does not match), call Abort to ensure the remaining handlers
 // for this request are not called.
 func (c *Context) Abort() {
-	c.index = abortIndex
+	// c.index = abortIndex
+	c.execer.SetIndex(abortIndex)
 }
 
 // AbortWithStatus calls `Abort()` and writes the headers with the specified status code.

@@ -51,7 +51,7 @@ func performRequestInGroup(t *testing.T, method string) {
 	assert.Equal(t, "/v1/login/", login.BasePath())
 
 	handler := func(c *Context) {
-		c.String(http.StatusBadRequest, "the method was %s and index %d", c.Request.Method, c.index)
+		c.String(http.StatusBadRequest, "the method was %s and index %d", c.Request.Method, c.execer.GetIndex())
 	}
 
 	switch method {
@@ -128,10 +128,10 @@ func TestRouterGroupTooManyHandlers(t *testing.T) {
 		maximumCnt = abortIndex
 	)
 	router := New(&Context{})
-	handlers1 := make([]HandlerFunc, maximumCnt-1)
+	handlers1 := make([]HandlerFunc[*Context], maximumCnt-1)
 	router.Use(handlers1...)
 
-	handlers2 := make([]HandlerFunc, maximumCnt+1)
+	handlers2 := make([]HandlerFunc[*Context], maximumCnt+1)
 	assert.PanicsWithValue(t, panicValue, func() {
 		router.Use(handlers2...)
 	})

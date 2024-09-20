@@ -18,21 +18,21 @@ func BenchmarkOneRoute(B *testing.B) {
 
 func BenchmarkRecoveryMiddleware(B *testing.B) {
 	router := New(&Context{})
-	router.Use(Recovery())
+	router.Use(Recovery[*Context]())
 	router.GET("/", func(c *Context) {})
 	runRequest(B, router, "GET", "/")
 }
 
 func BenchmarkLoggerMiddleware(B *testing.B) {
 	router := New(&Context{})
-	router.Use(LoggerWithWriter(newMockWriter()))
+	router.Use(LoggerWithWriter[*Context](newMockWriter()))
 	router.GET("/", func(c *Context) {})
 	runRequest(B, router, "GET", "/")
 }
 
 func BenchmarkManyHandlers(B *testing.B) {
 	router := New(&Context{})
-	router.Use(Recovery(), LoggerWithWriter(newMockWriter()))
+	router.Use(Recovery[*Context](), LoggerWithWriter[*Context](newMockWriter()))
 	router.Use(func(c *Context) {})
 	router.Use(func(c *Context) {})
 	router.GET("/ping", func(c *Context) {})

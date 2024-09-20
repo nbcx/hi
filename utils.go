@@ -19,7 +19,7 @@ import (
 const BindKey = "_gin-gonic/gin/bindkey"
 
 // Bind is a helper function for given interface object and returns a Gin middleware.
-func Bind(val any) HandlerFunc {
+func Bind[T IContext](val any) HandlerFunc[T] {
 	value := reflect.ValueOf(val)
 	if value.Kind() == reflect.Ptr {
 		panic(`Bind struct can not be a pointer. Example:
@@ -28,7 +28,7 @@ func Bind(val any) HandlerFunc {
 	}
 	typ := value.Type()
 
-	return func(c *Context) {
+	return func(c T) {
 		obj := reflect.New(typ).Interface()
 		if c.Bind(obj) == nil {
 			c.Set(BindKey, obj)
@@ -37,16 +37,16 @@ func Bind(val any) HandlerFunc {
 }
 
 // WrapF is a helper function for wrapping http.HandlerFunc and returns a Gin middleware.
-func WrapF(f http.HandlerFunc) HandlerFunc {
-	return func(c *Context) {
-		f(c.Writer, c.Request)
+func WrapF[T IContext](f http.HandlerFunc) HandlerFunc[T] {
+	return func(c T) {
+		f(c.Rsp(), c.Req())
 	}
 }
 
 // WrapH is a helper function for wrapping http.Handler and returns a Gin middleware.
-func WrapH(h http.Handler) HandlerFunc {
-	return func(c *Context) {
-		h.ServeHTTP(c.Writer, c.Request)
+func WrapH[T IContext](h http.Handler) HandlerFunc[T] {
+	return func(c T) {
+		h.ServeHTTP(c.Rsp(), c.Req())
 	}
 }
 

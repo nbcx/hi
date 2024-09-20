@@ -45,15 +45,15 @@ func (a authPairs) searchCredential(authValue string) (string, bool) {
 // the key is the user name and the value is the password, as well as the name of the Realm.
 // If the realm is empty, "Authorization Required" will be used by default.
 // (see http://tools.ietf.org/html/rfc2617#section-1.2)
-func BasicAuthForRealm(accounts Accounts, realm string) HandlerFunc {
+func BasicAuthForRealm[T IContext](accounts Accounts, realm string) HandlerFunc[T] {
 	if realm == "" {
 		realm = "Authorization Required"
 	}
 	realm = "Basic realm=" + strconv.Quote(realm)
 	pairs := processAccounts(accounts)
-	return func(c *Context) {
+	return func(c T) {
 		// Search user in the slice of allowed credentials
-		user, found := pairs.searchCredential(c.requestHeader("Authorization"))
+		user, found := pairs.searchCredential(c.Req().Header.Get("Authorization"))
 		if !found {
 			// Credentials doesn't match, we return 401 and abort handlers chain.
 			c.Header("WWW-Authenticate", realm)
@@ -69,8 +69,8 @@ func BasicAuthForRealm(accounts Accounts, realm string) HandlerFunc {
 
 // BasicAuth returns a Basic HTTP Authorization middleware. It takes as argument a map[string]string where
 // the key is the user name and the value is the password.
-func BasicAuth(accounts Accounts) HandlerFunc {
-	return BasicAuthForRealm(accounts, "")
+func BasicAuth[T IContext](accounts Accounts) HandlerFunc[T] {
+	return BasicAuthForRealm[T](accounts, "")
 }
 
 func processAccounts(accounts Accounts) authPairs {
@@ -95,14 +95,14 @@ func authorizationHeader(user, password string) string {
 
 // BasicAuthForProxy returns a Basic HTTP Proxy-Authorization middleware.
 // If the realm is empty, "Proxy Authorization Required" will be used by default.
-func BasicAuthForProxy(accounts Accounts, realm string) HandlerFunc {
+func BasicAuthForProxy[T IContext](accounts Accounts, realm string) HandlerFunc[T] {
 	if realm == "" {
 		realm = "Proxy Authorization Required"
 	}
 	realm = "Basic realm=" + strconv.Quote(realm)
 	pairs := processAccounts(accounts)
-	return func(c *Context) {
-		proxyUser, found := pairs.searchCredential(c.requestHeader("Proxy-Authorization"))
+	return func(c T) {
+		proxyUser, found := pairs.searchCredential(c.Req().Header.Get("Proxy-Authorization"))
 		if !found {
 			// Credentials doesn't match, we return 407 and abort handlers chain.
 			c.Header("Proxy-Authenticate", realm)
