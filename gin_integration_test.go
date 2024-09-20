@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"crypto/tls"
 	"fmt"
-	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -78,10 +77,10 @@ func TestRunEmpty(t *testing.T) {
 	testRequest(t, "http://localhost:8080/example")
 }
 
-func TestBadTrustedCIDRs(t *testing.T) {
-	router := New(&Context{})
-	require.Error(t, router.SetTrustedProxies([]string{"hello/world"}))
-}
+// func TestBadTrustedCIDRs(t *testing.T) {
+// 	router := New(&Context{})
+// 	require.Error(t, router.SetTrustedProxies([]string{"hello/world"}))
+// }
 
 /* legacy tests
 func TestBadTrustedCIDRsForRun(t *testing.T) {
@@ -169,42 +168,42 @@ func TestRunTLS(t *testing.T) {
 	testRequest(t, "https://localhost:8443/example")
 }
 
-func TestPusher(t *testing.T) {
-	var html = template.Must(template.New("https").Parse(`
-<html>
-<head>
-  <title>Https Test</title>
-  <script src="/assets/app.js"></script>
-</head>
-<body>
-  <h1 style="color:red;">Welcome, Ginner!</h1>
-</body>
-</html>
-`))
+// func TestPusher(t *testing.T) {
+// 	var html = template.Must(template.New("https").Parse(`
+// <html>
+// <head>
+//   <title>Https Test</title>
+//   <script src="/assets/app.js"></script>
+// </head>
+// <body>
+//   <h1 style="color:red;">Welcome, Ginner!</h1>
+// </body>
+// </html>
+// `))
 
-	router := New(&Context{})
-	router.Static("./assets", "./assets")
-	router.SetHTMLTemplate(html)
+// 	router := New(&Context{})
+// 	router.Static("./assets", "./assets")
+// 	router.SetHTMLTemplate(html)
 
-	go func() {
-		router.GET("/pusher", func(c *Context) {
-			if pusher := c.Writer.Pusher(); pusher != nil {
-				err := pusher.Push("/assets/app.js", nil)
-				assert.NoError(t, err)
-			}
-			c.String(http.StatusOK, "it worked")
-		})
+// 	go func() {
+// 		router.GET("/pusher", func(c *Context) {
+// 			if pusher := c.Writer.Pusher(); pusher != nil {
+// 				err := pusher.Push("/assets/app.js", nil)
+// 				assert.NoError(t, err)
+// 			}
+// 			c.String(http.StatusOK, "it worked")
+// 		})
 
-		assert.NoError(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
-	}()
+// 		assert.NoError(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+// 	}()
 
-	// have to wait for the goroutine to start and run the server
-	// otherwise the main thread will complete
-	time.Sleep(5 * time.Millisecond)
+// 	// have to wait for the goroutine to start and run the server
+// 	// otherwise the main thread will complete
+// 	time.Sleep(5 * time.Millisecond)
 
-	require.Error(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
-	testRequest(t, "https://localhost:8449/pusher")
-}
+// 	require.Error(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+// 	testRequest(t, "https://localhost:8449/pusher")
+// }
 
 func TestRunEmptyWithEnv(t *testing.T) {
 	os.Setenv("PORT", "3123")

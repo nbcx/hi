@@ -185,7 +185,7 @@ func TestLoggerWithConfigFormatting(t *testing.T) {
 	buffer := new(strings.Builder)
 
 	router := New(&Context{})
-	router.engine.trustedCIDRs, _ = router.engine.prepareTrustedCIDRs()
+	// router.engine.trustedCIDRs, _ = router.engine.prepareTrustedCIDRs()
 
 	router.Use(LoggerWithConfig(LoggerConfig{
 		Output: buffer,

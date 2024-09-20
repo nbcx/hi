@@ -5,7 +5,6 @@
 package hiS
 
 import (
-	"html/template"
 	"net/http"
 	"sync"
 
@@ -23,19 +22,19 @@ func engine() *gin.Engine[*gin.Context] {
 }
 
 // LoadHTMLGlob is a wrapper for Engine.LoadHTMLGlob.
-func LoadHTMLGlob(pattern string) {
-	engine().LoadHTMLGlob(pattern)
-}
+// func LoadHTMLGlob(pattern string) {
+// 	engine().LoadHTMLGlob(pattern)
+// }
 
-// LoadHTMLFiles is a wrapper for Engine.LoadHTMLFiles.
-func LoadHTMLFiles(files ...string) {
-	engine().LoadHTMLFiles(files...)
-}
+// // LoadHTMLFiles is a wrapper for Engine.LoadHTMLFiles.
+// func LoadHTMLFiles(files ...string) {
+// 	engine().LoadHTMLFiles(files...)
+// }
 
-// SetHTMLTemplate is a wrapper for Engine.SetHTMLTemplate.
-func SetHTMLTemplate(templ *template.Template) {
-	engine().SetHTMLTemplate(templ)
-}
+// // SetHTMLTemplate is a wrapper for Engine.SetHTMLTemplate.
+// func SetHTMLTemplate(templ *template.Template) {
+// 	engine().SetHTMLTemplate(templ)
+// }
 
 // NoRoute adds handlers for NoRoute. It returns a 404 code by default.
 func NoRoute(handlers ...gin.HandlerFunc) {

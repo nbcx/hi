@@ -65,7 +65,7 @@ type Context struct {
 	index    int8
 	fullPath string
 
-	engine       *Engine[IContext] // todo: need check
+	// engine       *Engine[IContext] // todo: need check
 	params       *Params
 	skippedNodes *[]skippedNode
 
@@ -91,16 +91,53 @@ type Context struct {
 	// SameSite allows a server to define a cookie attribute making it impossible for
 	// the browser to send this cookie along with cross-site requests.
 	sameSite http.SameSite
+
+	// note: from engin field and func
+
+	// ContextWithFallback enable fallback Context.Deadline(), Context.Done(), Context.Err() and Context.Value() when Context.Request.Context() is not nil.
+	ContextWithFallback bool
+
+	// MaxMultipartMemory value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
+	// method call.
+	MaxMultipartMemory int64
+
+	// TrustedPlatform if set to a constant of value gin.Platform*, trusts the headers set by
+	// that platform, for example to determine the client IP
+	TrustedPlatform string
+
+	// AppEngine was deprecated.
+	// Deprecated: USE `TrustedPlatform` WITH VALUE `gin.PlatformGoogleAppEngine` INSTEAD
+	// #726 #755 If enabled, it will trust some headers starting with
+	// 'X-AppEngine...' for better integration with that PaaS.
+	AppEngine bool
+
+	// RemoteIPHeaders list of headers used to obtain the client IP when
+	// `(*gin.Engine).ForwardedByClientIP` is `true` and
+	// `(*gin.Context).Request.RemoteAddr` is matched by at least one of the
+	// network origins of list defined by `(*gin.Engine).SetTrustedProxies()`.
+	RemoteIPHeaders []string
+
+	// ForwardedByClientIP if enabled, client IP will be parsed from the request's headers that
+	// match those stored at `(*gin.Engine).RemoteIPHeaders`. If no IP was
+	// fetched, it falls back to the IP obtained from
+	// `(*gin.Context).Request.RemoteAddr`.
+	ForwardedByClientIP bool
+
+	HTMLRender render.HTMLRender
 }
 
-func (c *Context) New(e any, maxParams uint16) {
+func (c *Context) New(maxSections, maxParams uint16) {
 	v := make(Params, 0, maxParams)
-	en := e.(*Engine[IContext])
-	skippedNodes := make([]skippedNode, 0, en.maxSections)
+	// en := e.(*Engine[IContext])
+	skippedNodes := make([]skippedNode, 0, maxSections)
 
-	c.engine = en
+	// c.engine = en
 	c.params = &v
 	c.skippedNodes = &skippedNodes
+	c.ForwardedByClientIP = true
+	c.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
+	c.TrustedPlatform = defaultPlatform
+	c.MaxMultipartMemory = defaultMultipartMemory
 	// return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
 }
 
@@ -147,7 +184,7 @@ func (c *Context) Copy() *Context {
 	cp := Context{
 		writermem: c.writermem,
 		Request:   c.Request,
-		engine:    c.engine,
+		// engine:    c.engine,
 	}
 
 	cp.writermem.ResponseWriter = nil
@@ -716,7 +753,7 @@ func (c *Context) initFormCache() {
 	if c.formCache == nil {
 		c.formCache = make(url.Values)
 		req := c.Request
-		if err := req.ParseMultipartForm(c.engine.MaxMultipartMemory); err != nil {
+		if err := req.ParseMultipartForm(c.MaxMultipartMemory); err != nil {
 			if !errors.Is(err, http.ErrNotMultipart) {
 				debugPrint("error on parse multipart form array: %v", err)
 			}
@@ -764,7 +801,7 @@ func (c *Context) get(m map[string][]string, key string) (map[string]string, boo
 // FormFile returns the first file for the provided form key.
 func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	if c.Request.MultipartForm == nil {
-		if err := c.Request.ParseMultipartForm(c.engine.MaxMultipartMemory); err != nil {
+		if err := c.Request.ParseMultipartForm(c.MaxMultipartMemory); err != nil {
 			return nil, err
 		}
 	}
@@ -778,7 +815,7 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 
 // MultipartForm is the parsed multipart form, including file uploads.
 func (c *Context) MultipartForm() (*multipart.Form, error) {
-	err := c.Request.ParseMultipartForm(c.engine.MaxMultipartMemory)
+	err := c.Request.ParseMultipartForm(c.MaxMultipartMemory)
 	return c.Request.MultipartForm, err
 }
 
@@ -985,48 +1022,6 @@ func (c *Context) ShouldBindBodyWithPlain(obj any) error {
 	return c.ShouldBindBodyWith(obj, binding.Plain)
 }
 
-// ClientIP implements one best effort algorithm to return the real client IP.
-// It calls c.RemoteIP() under the hood, to check if the remote IP is a trusted proxy or not.
-// If it is it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
-// If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
-// the remote IP (coming from Request.RemoteAddr) is returned.
-func (c *Context) ClientIP() string {
-	// Check if we're running on a trusted platform, continue running backwards if error
-	if c.engine.TrustedPlatform != "" {
-		// Developers can define their own header of Trusted Platform or use predefined constants
-		if addr := c.requestHeader(c.engine.TrustedPlatform); addr != "" {
-			return addr
-		}
-	}
-
-	// Legacy "AppEngine" flag
-	if c.engine.AppEngine {
-		log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
-		if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
-			return addr
-		}
-	}
-
-	// It also checks if the remoteIP is a trusted proxy or not.
-	// In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
-	// defined by Engine.SetTrustedProxies()
-	remoteIP := net.ParseIP(c.RemoteIP())
-	if remoteIP == nil {
-		return ""
-	}
-	trusted := c.engine.isTrustedProxy(remoteIP)
-
-	if trusted && c.engine.ForwardedByClientIP && c.engine.RemoteIPHeaders != nil {
-		for _, headerName := range c.engine.RemoteIPHeaders {
-			ip, valid := c.engine.validateHeader(c.requestHeader(headerName))
-			if valid {
-				return ip
-			}
-		}
-	}
-	return remoteIP.String()
-}
-
 // RemoteIP parses the IP from Request.RemoteAddr, normalizes and returns the IP (without the port).
 func (c *Context) RemoteIP() string {
 	ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr))
@@ -1159,7 +1154,7 @@ func (c *Context) Render(code int, r render.Render) {
 // It also updates the HTTP code and sets the Content-Type as "text/html".
 // See http://golang.org/doc/articles/wiki/
 func (c *Context) HTML(code int, name string, obj any) {
-	instance := c.engine.HTMLRender.Instance(name, obj)
+	instance := c.HTMLRender.Instance(name, obj)
 	c.Render(code, instance)
 }
 
@@ -1174,8 +1169,12 @@ func (c *Context) IndentedJSON(code int, obj any) {
 // SecureJSON serializes the given struct as Secure JSON into the response body.
 // Default prepends "while(1)," to response body if the given struct is array values.
 // It also sets the Content-Type as "application/json".
-func (c *Context) SecureJSON(code int, obj any) {
-	c.Render(code, render.SecureJSON{Prefix: c.engine.secureJSONPrefix, Data: obj})
+func (c *Context) SecureJSON(code int, obj any, secureJSONPrefix ...string) {
+	prefix := "while(1);"
+	if len(secureJSONPrefix) > 0 {
+		prefix = secureJSONPrefix[0]
+	}
+	c.Render(code, render.SecureJSON{Prefix: prefix, Data: obj})
 }
 
 // JSONP serializes the given struct as JSON into the response body.
@@ -1407,7 +1406,7 @@ func (c *Context) SetAccepted(formats ...string) {
 
 // hasRequestContext returns whether c.Request has Context and fallback.
 func (c *Context) hasRequestContext() bool {
-	hasFallback := c.engine != nil && c.engine.ContextWithFallback
+	hasFallback := c.ContextWithFallback
 	hasRequestContext := c.Request != nil && c.Request.Context() != nil
 	return hasFallback && hasRequestContext
 }
@@ -1456,3 +1455,139 @@ func (c *Context) Value(key any) any {
 	}
 	return c.Request.Context().Value(key)
 }
+
+//****** todo: 此函数实现过于复杂，后续需优化
+
+// ClientIP implements one best effort algorithm to return the real client IP.
+// It calls c.RemoteIP() under the hood, to check if the remote IP is a trusted proxy or not.
+// If it is it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
+// If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
+// the remote IP (coming from Request.RemoteAddr) is returned.
+func (c *Context) ClientIP() string {
+	// Check if we're running on a trusted platform, continue running backwards if error
+	if c.TrustedPlatform != "" {
+		// Developers can define their own header of Trusted Platform or use predefined constants
+		if addr := c.requestHeader(c.TrustedPlatform); addr != "" {
+			return addr
+		}
+	}
+
+	// Legacy "AppEngine" flag
+	if c.AppEngine {
+		log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
+		if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
+			return addr
+		}
+	}
+
+	// It also checks if the remoteIP is a trusted proxy or not.
+	// In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
+	// defined by Engine.SetTrustedProxies()
+	remoteIP := net.ParseIP(c.RemoteIP())
+	if remoteIP == nil {
+		return ""
+	}
+	trusted := c.isTrustedProxy(remoteIP)
+
+	if trusted && c.ForwardedByClientIP && c.RemoteIPHeaders != nil {
+		for _, headerName := range c.RemoteIPHeaders {
+			ip, valid := c.validateHeader(c.requestHeader(headerName))
+			if valid {
+				return ip
+			}
+		}
+	}
+	return remoteIP.String()
+}
+
+// isTrustedProxy will check whether the IP address is included in the trusted list according to Engine.trustedCIDRs
+func (c *Context) isTrustedProxy(ip net.IP) bool {
+	// 	if engine.trustedCIDRs == nil {
+	// 		return false
+	// 	}
+	if defaultTrustedCIDRs == nil {
+		return false
+	}
+	for _, cidr := range defaultTrustedCIDRs {
+		if cidr.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// validateHeader will parse X-Forwarded-For header and return the trusted client IP address
+func (c *Context) validateHeader(header string) (clientIP string, valid bool) {
+	if header == "" {
+		return "", false
+	}
+	items := strings.Split(header, ",")
+	for i := len(items) - 1; i >= 0; i-- {
+		ipStr := strings.TrimSpace(items[i])
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			break
+		}
+
+		// X-Forwarded-For is appended by proxy
+		// Check IPs in reverse order and stop when find untrusted proxy
+		if (i == 0) || (!c.isTrustedProxy(ip)) {
+			return ipStr, true
+		}
+	}
+	return "", false
+}
+
+func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
+	if engine.trustedProxies == nil {
+		return nil, nil
+	}
+
+	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
+	for _, trustedProxy := range engine.trustedProxies {
+		if !strings.Contains(trustedProxy, "/") {
+			ip := parseIP(trustedProxy)
+			if ip == nil {
+				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
+			}
+
+			switch len(ip) {
+			case net.IPv4len:
+				trustedProxy += "/32"
+			case net.IPv6len:
+				trustedProxy += "/128"
+			}
+		}
+		_, cidrNet, err := net.ParseCIDR(trustedProxy)
+		if err != nil {
+			return cidr, err
+		}
+		cidr = append(cidr, cidrNet)
+	}
+	return cidr, nil
+}
+
+// SetTrustedProxies set a list of network origins (IPv4 addresses,
+// IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust
+// request's headers that contain alternative client IP when
+// `(*gin.Engine).ForwardedByClientIP` is `true`. `TrustedProxies`
+// feature is enabled by default, and it also trusts all proxies
+// by default. If you want to disable this feature, use
+// Engine.SetTrustedProxies(nil), then Context.ClientIP() will
+// return the remote address directly.
+// func (engine *Engine[T]) SetTrustedProxies(trustedProxies []string) error {
+// 	engine.trustedProxies = trustedProxies
+// 	return engine.parseTrustedProxies()
+// }
+
+// isUnsafeTrustedProxies checks if Engine.trustedCIDRs contains all IPs, it's not safe if it has (returns true)
+// func (engine *Engine[T]) isUnsafeTrustedProxies() bool {
+// 	return engine.isTrustedProxy(net.ParseIP("0.0.0.0")) || engine.isTrustedProxy(net.ParseIP("::"))
+// }
+
+// parseTrustedProxies parse Engine.trustedProxies to Engine.trustedCIDRs
+// func (engine *Engine[T]) parseTrustedProxies() error {
+// 	trustedCIDRs, err := engine.prepareTrustedCIDRs()
+// 	engine.trustedCIDRs = trustedCIDRs
+// 	return err
+// }

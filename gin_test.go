@@ -62,25 +62,25 @@ func setupHTMLFiles(t *testing.T, mode string, tls bool, loadMethod func(*Engine
 	return ts
 }
 
-func TestLoadHTMLGlobDebugMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		DebugMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLGlob("./testdata/template/*")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLGlobDebugMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		DebugMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLGlob("./testdata/template/*")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
 func TestH2c(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -120,92 +120,92 @@ func TestH2c(t *testing.T) {
 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
 }
 
-func TestLoadHTMLGlobTestMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		TestMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLGlob("./testdata/template/*")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLGlobTestMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		TestMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLGlob("./testdata/template/*")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLGlobReleaseMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		ReleaseMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLGlob("./testdata/template/*")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLGlobReleaseMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		ReleaseMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLGlob("./testdata/template/*")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLGlobUsingTLS(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		DebugMode,
-		true,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLGlob("./testdata/template/*")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLGlobUsingTLS(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		DebugMode,
+// 		true,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLGlob("./testdata/template/*")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	client := &http.Client{Transport: tr}
-	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
+// 	tr := &http.Transport{
+// 		TLSClientConfig: &tls.Config{
+// 			InsecureSkipVerify: true,
+// 		},
+// 	}
+// 	client := &http.Client{Transport: tr}
+// 	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLGlobFromFuncMap(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		DebugMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLGlob("./testdata/template/*")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLGlobFromFuncMap(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		DebugMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLGlob("./testdata/template/*")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "Date: 2017/07/01", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "Date: 2017/07/01", string(resp))
+// }
 
 func init() {
 	SetMode(TestMode)
@@ -218,112 +218,112 @@ func TestCreateEngine(t *testing.T) {
 	assert.Empty(t, router.Handlers)
 }
 
-func TestLoadHTMLFilesTestMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		TestMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLFilesTestMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		TestMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLFilesDebugMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		DebugMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLFilesDebugMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		DebugMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLFilesReleaseMode(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		ReleaseMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLFilesReleaseMode(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		ReleaseMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLFilesUsingTLS(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		TestMode,
-		true,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLFilesUsingTLS(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		TestMode,
+// 		true,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	client := &http.Client{Transport: tr}
-	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	// Use InsecureSkipVerify for avoiding `x509: certificate signed by unknown authority` error
+// 	tr := &http.Transport{
+// 		TLSClientConfig: &tls.Config{
+// 			InsecureSkipVerify: true,
+// 		},
+// 	}
+// 	client := &http.Client{Transport: tr}
+// 	res, err := client.Get(fmt.Sprintf("%s/test", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "<h1>Hello world</h1>", string(resp))
+// }
 
-func TestLoadHTMLFilesFuncMap(t *testing.T) {
-	ts := setupHTMLFiles(
-		t,
-		TestMode,
-		false,
-		func(router *Engine[*Context]) {
-			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
-		},
-	)
-	defer ts.Close()
+// func TestLoadHTMLFilesFuncMap(t *testing.T) {
+// 	ts := setupHTMLFiles(
+// 		t,
+// 		TestMode,
+// 		false,
+// 		func(router *Engine[*Context]) {
+// 			router.LoadHTMLFiles("./testdata/template/hello.tmpl", "./testdata/template/raw.tmpl")
+// 		},
+// 	)
+// 	defer ts.Close()
 
-	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
-	if err != nil {
-		t.Error(err)
-	}
+// 	res, err := http.Get(fmt.Sprintf("%s/raw", ts.URL))
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
 
-	resp, _ := io.ReadAll(res.Body)
-	assert.Equal(t, "Date: 2017/07/01", string(resp))
-}
+// 	resp, _ := io.ReadAll(res.Body)
+// 	assert.Equal(t, "Date: 2017/07/01", string(resp))
+// }
 
 func TestAddRoute(t *testing.T) {
 	router := New(&Context{})
@@ -573,110 +573,110 @@ func TestEngineHandleContextManyReEntries(t *testing.T) {
 	assert.Equal(t, int64(expectValue), middlewareCounter)
 }
 
-func TestPrepareTrustedCIRDsWith(t *testing.T) {
-	r := New(&Context{})
+// func TestPrepareTrustedCIRDsWith(t *testing.T) {
+// 	r := New(&Context{})
 
-	// valid ipv4 cidr
-	{
-		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("0.0.0.0/0")}
-		err := r.SetTrustedProxies([]string{"0.0.0.0/0"})
+// 	// valid ipv4 cidr
+// 	{
+// 		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("0.0.0.0/0")}
+// 		err := r.SetTrustedProxies([]string{"0.0.0.0/0"})
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
-	}
+// 		require.NoError(t, err)
+// 		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
+// 	}
 
-	// invalid ipv4 cidr
-	{
-		err := r.SetTrustedProxies([]string{"192.168.1.33/33"})
+// 	// invalid ipv4 cidr
+// 	{
+// 		err := r.SetTrustedProxies([]string{"192.168.1.33/33"})
 
-		require.Error(t, err)
-	}
+// 		require.Error(t, err)
+// 	}
 
-	// valid ipv4 address
-	{
-		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("192.168.1.33/32")}
+// 	// valid ipv4 address
+// 	{
+// 		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("192.168.1.33/32")}
 
-		err := r.SetTrustedProxies([]string{"192.168.1.33"})
+// 		err := r.SetTrustedProxies([]string{"192.168.1.33"})
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
-	}
+// 		require.NoError(t, err)
+// 		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
+// 	}
 
-	// invalid ipv4 address
-	{
-		err := r.SetTrustedProxies([]string{"192.168.1.256"})
+// 	// invalid ipv4 address
+// 	{
+// 		err := r.SetTrustedProxies([]string{"192.168.1.256"})
 
-		require.Error(t, err)
-	}
+// 		require.Error(t, err)
+// 	}
 
-	// valid ipv6 address
-	{
-		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("2002:0000:0000:1234:abcd:ffff:c0a8:0101/128")}
-		err := r.SetTrustedProxies([]string{"2002:0000:0000:1234:abcd:ffff:c0a8:0101"})
+// 	// valid ipv6 address
+// 	{
+// 		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("2002:0000:0000:1234:abcd:ffff:c0a8:0101/128")}
+// 		err := r.SetTrustedProxies([]string{"2002:0000:0000:1234:abcd:ffff:c0a8:0101"})
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
-	}
+// 		require.NoError(t, err)
+// 		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
+// 	}
 
-	// invalid ipv6 address
-	{
-		err := r.SetTrustedProxies([]string{"gggg:0000:0000:1234:abcd:ffff:c0a8:0101"})
+// 	// invalid ipv6 address
+// 	{
+// 		err := r.SetTrustedProxies([]string{"gggg:0000:0000:1234:abcd:ffff:c0a8:0101"})
 
-		require.Error(t, err)
-	}
+// 		require.Error(t, err)
+// 	}
 
-	// valid ipv6 cidr
-	{
-		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("::/0")}
-		err := r.SetTrustedProxies([]string{"::/0"})
+// 	// valid ipv6 cidr
+// 	{
+// 		expectedTrustedCIDRs := []*net.IPNet{parseCIDR("::/0")}
+// 		err := r.SetTrustedProxies([]string{"::/0"})
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
-	}
+// 		require.NoError(t, err)
+// 		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
+// 	}
 
-	// invalid ipv6 cidr
-	{
-		err := r.SetTrustedProxies([]string{"gggg:0000:0000:1234:abcd:ffff:c0a8:0101/129"})
+// 	// invalid ipv6 cidr
+// 	{
+// 		err := r.SetTrustedProxies([]string{"gggg:0000:0000:1234:abcd:ffff:c0a8:0101/129"})
 
-		require.Error(t, err)
-	}
+// 		require.Error(t, err)
+// 	}
 
-	// valid combination
-	{
-		expectedTrustedCIDRs := []*net.IPNet{
-			parseCIDR("::/0"),
-			parseCIDR("192.168.0.0/16"),
-			parseCIDR("172.16.0.1/32"),
-		}
-		err := r.SetTrustedProxies([]string{
-			"::/0",
-			"192.168.0.0/16",
-			"172.16.0.1",
-		})
+// 	// valid combination
+// 	{
+// 		expectedTrustedCIDRs := []*net.IPNet{
+// 			parseCIDR("::/0"),
+// 			parseCIDR("192.168.0.0/16"),
+// 			parseCIDR("172.16.0.1/32"),
+// 		}
+// 		err := r.SetTrustedProxies([]string{
+// 			"::/0",
+// 			"192.168.0.0/16",
+// 			"172.16.0.1",
+// 		})
 
-		require.NoError(t, err)
-		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
-	}
+// 		require.NoError(t, err)
+// 		assert.Equal(t, expectedTrustedCIDRs, r.trustedCIDRs)
+// 	}
 
-	// invalid combination
-	{
-		err := r.SetTrustedProxies([]string{
-			"::/0",
-			"192.168.0.0/16",
-			"172.16.0.256",
-		})
+// 	// invalid combination
+// 	{
+// 		err := r.SetTrustedProxies([]string{
+// 			"::/0",
+// 			"192.168.0.0/16",
+// 			"172.16.0.256",
+// 		})
 
-		require.Error(t, err)
-	}
+// 		require.Error(t, err)
+// 	}
 
-	// nil value
-	{
-		err := r.SetTrustedProxies(nil)
+// 	// nil value
+// 	{
+// 		err := r.SetTrustedProxies(nil)
 
-		assert.Nil(t, r.trustedCIDRs)
-		require.NoError(t, err)
-	}
-}
+// 		assert.Nil(t, r.trustedCIDRs)
+// 		require.NoError(t, err)
+// 	}
+// }
 
 func parseCIDR(cidr string) *net.IPNet {
 	_, parsedCIDR, err := net.ParseCIDR(cidr)

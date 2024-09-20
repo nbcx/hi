@@ -125,13 +125,13 @@ type Engine[T IContext] struct {
 	// match those stored at `(*gin.Engine).RemoteIPHeaders`. If no IP was
 	// fetched, it falls back to the IP obtained from
 	// `(*gin.Context).Request.RemoteAddr`.
-	ForwardedByClientIP bool
+	// ForwardedByClientIP bool
 
 	// AppEngine was deprecated.
 	// Deprecated: USE `TrustedPlatform` WITH VALUE `gin.PlatformGoogleAppEngine` INSTEAD
 	// #726 #755 If enabled, it will trust some headers starting with
 	// 'X-AppEngine...' for better integration with that PaaS.
-	AppEngine bool
+	// AppEngine bool
 
 	// UseRawPath if enabled, the url.RawPath will be used to find parameters.
 	UseRawPath bool
@@ -149,42 +149,44 @@ type Engine[T IContext] struct {
 	// `(*gin.Engine).ForwardedByClientIP` is `true` and
 	// `(*gin.Context).Request.RemoteAddr` is matched by at least one of the
 	// network origins of list defined by `(*gin.Engine).SetTrustedProxies()`.
-	RemoteIPHeaders []string
+	// RemoteIPHeaders []string
 
 	// TrustedPlatform if set to a constant of value gin.Platform*, trusts the headers set by
 	// that platform, for example to determine the client IP
-	TrustedPlatform string
+	// TrustedPlatform string
 
+	// todo: del
 	// MaxMultipartMemory value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
 	// method call.
-	MaxMultipartMemory int64
+	// MaxMultipartMemory int64
 
 	// UseH2C enable h2c support.
 	UseH2C bool
 
+	// todo: del
 	// ContextWithFallback enable fallback Context.Deadline(), Context.Done(), Context.Err() and Context.Value() when Context.Request.Context() is not nil.
-	ContextWithFallback bool
+	// ContextWithFallback bool
 
-	delims           render.Delims
-	secureJSONPrefix string
-	HTMLRender       render.HTMLRender
-	FuncMap          template.FuncMap
-	allNoRoute       HandlersChain
-	allNoMethod      HandlersChain
-	noRoute          HandlersChain
-	noMethod         HandlersChain
-	pool             sync.Pool
-	trees            methodTrees
-	maxParams        uint16
-	maxSections      uint16
-	trustedProxies   []string
-	trustedCIDRs     []*net.IPNet
+	delims render.Delims
+	// secureJSONPrefix string
+	// HTMLRender       render.HTMLRender
+	FuncMap        template.FuncMap
+	allNoRoute     HandlersChain
+	allNoMethod    HandlersChain
+	noRoute        HandlersChain
+	noMethod       HandlersChain
+	pool           sync.Pool
+	trees          methodTrees
+	maxParams      uint16
+	maxSections    uint16
+	trustedProxies []string
+	// trustedCIDRs     []*net.IPNet
 }
 
 var _ IRouter[IContext] = (*Engine[IContext])(nil)
 
 type IContext interface {
-	New(e any, maxParams uint16)
+	New(maxSections, maxParams uint16)
 	Init(w http.ResponseWriter, req *http.Request)
 	Req() *http.Request
 	Rsp() ResponseWriter
@@ -208,7 +210,7 @@ func (engine *Engine[T]) allocateContext(t T, maxParams uint16) T {
 
 	i := reflect.New(reflect.TypeOf(t).Elem()).Interface().(T)
 	// e := *Engine[IContext](engine)
-	i.New(engine, maxParams)
+	i.New(engine.maxSections, maxParams)
 	return i
 }
 
@@ -241,18 +243,18 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 		RedirectTrailingSlash:  true,
 		RedirectFixedPath:      false,
 		HandleMethodNotAllowed: false,
-		ForwardedByClientIP:    true,
-		RemoteIPHeaders:        []string{"X-Forwarded-For", "X-Real-IP"},
-		TrustedPlatform:        defaultPlatform,
-		UseRawPath:             false,
-		RemoveExtraSlash:       false,
-		UnescapePathValues:     true,
-		MaxMultipartMemory:     defaultMultipartMemory,
-		trees:                  make(methodTrees, 0, 9),
-		delims:                 render.Delims{Left: "{{", Right: "}}"},
-		secureJSONPrefix:       "while(1);",
-		trustedProxies:         []string{"0.0.0.0/0", "::/0"},
-		trustedCIDRs:           defaultTrustedCIDRs,
+		// ForwardedByClientIP:    true,
+		// RemoteIPHeaders:    []string{"X-Forwarded-For", "X-Real-IP"},
+		// TrustedPlatform:    defaultPlatform,
+		UseRawPath:         false,
+		RemoveExtraSlash:   false,
+		UnescapePathValues: true,
+		// MaxMultipartMemory: defaultMultipartMemory,
+		trees:  make(methodTrees, 0, 9),
+		delims: render.Delims{Left: "{{", Right: "}}"},
+		// secureJSONPrefix: "while(1);",
+		trustedProxies: []string{"0.0.0.0/0", "::/0"},
+		// trustedCIDRs:     defaultTrustedCIDRs,
 	}
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() any {
@@ -284,48 +286,50 @@ func (engine *Engine[T]) Delims(left, right string) *Engine[T] {
 	return engine
 }
 
-// SecureJsonPrefix sets the secureJSONPrefix used in Context.SecureJSON.
-func (engine *Engine[T]) SecureJsonPrefix(prefix string) *Engine[T] {
-	engine.secureJSONPrefix = prefix
-	return engine
-}
+// // SecureJsonPrefix sets the secureJSONPrefix used in Context.SecureJSON.
+// func (engine *Engine[T]) SecureJsonPrefix(prefix string) *Engine[T] {
+// 	engine.secureJSONPrefix = prefix
+// 	return engine
+// }
 
-// LoadHTMLGlob loads HTML files identified by glob pattern
-// and associates the result with HTML renderer.
-func (engine *Engine[T]) LoadHTMLGlob(pattern string) {
-	left := engine.delims.Left
-	right := engine.delims.Right
-	templ := template.Must(template.New("").Delims(left, right).Funcs(engine.FuncMap).ParseGlob(pattern))
+// note: 不在默认支持模版
 
-	if IsDebugging() {
-		debugPrintLoadTemplate(templ)
-		engine.HTMLRender = render.HTMLDebug{Glob: pattern, FuncMap: engine.FuncMap, Delims: engine.delims}
-		return
-	}
+// // LoadHTMLGlob loads HTML files identified by glob pattern
+// // and associates the result with HTML renderer.
+// func (engine *Engine[T]) LoadHTMLGlob(pattern string) {
+// 	left := engine.delims.Left
+// 	right := engine.delims.Right
+// 	templ := template.Must(template.New("").Delims(left, right).Funcs(engine.FuncMap).ParseGlob(pattern))
 
-	engine.SetHTMLTemplate(templ)
-}
+// 	if IsDebugging() {
+// 		debugPrintLoadTemplate(templ)
+// 		engine.HTMLRender = render.HTMLDebug{Glob: pattern, FuncMap: engine.FuncMap, Delims: engine.delims}
+// 		return
+// 	}
 
-// LoadHTMLFiles loads a slice of HTML files
-// and associates the result with HTML renderer.
-func (engine *Engine[T]) LoadHTMLFiles(files ...string) {
-	if IsDebugging() {
-		engine.HTMLRender = render.HTMLDebug{Files: files, FuncMap: engine.FuncMap, Delims: engine.delims}
-		return
-	}
+// 	engine.SetHTMLTemplate(templ)
+// }
 
-	templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseFiles(files...))
-	engine.SetHTMLTemplate(templ)
-}
+// // LoadHTMLFiles loads a slice of HTML files
+// // and associates the result with HTML renderer.
+// func (engine *Engine[T]) LoadHTMLFiles(files ...string) {
+// 	if IsDebugging() {
+// 		engine.HTMLRender = render.HTMLDebug{Files: files, FuncMap: engine.FuncMap, Delims: engine.delims}
+// 		return
+// 	}
 
-// SetHTMLTemplate associate a template with HTML renderer.
-func (engine *Engine[T]) SetHTMLTemplate(templ *template.Template) {
-	if len(engine.trees) > 0 {
-		debugPrintWARNINGSetHTMLTemplate()
-	}
+// 	templ := template.Must(template.New("").Delims(engine.delims.Left, engine.delims.Right).Funcs(engine.FuncMap).ParseFiles(files...))
+// 	engine.SetHTMLTemplate(templ)
+// }
 
-	engine.HTMLRender = render.HTMLProduction{Template: templ.Funcs(engine.FuncMap)}
-}
+// // SetHTMLTemplate associate a template with HTML renderer.
+// func (engine *Engine[T]) SetHTMLTemplate(templ *template.Template) {
+// 	if len(engine.trees) > 0 {
+// 		debugPrintWARNINGSetHTMLTemplate()
+// 	}
+
+// 	engine.HTMLRender = render.HTMLProduction{Template: templ.Funcs(engine.FuncMap)}
+// }
 
 // SetFuncMap sets the FuncMap used for template.FuncMap.
 func (engine *Engine[T]) SetFuncMap(funcMap template.FuncMap) {
@@ -421,94 +425,94 @@ func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
 	return routes
 }
 
-func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
-	if engine.trustedProxies == nil {
-		return nil, nil
-	}
+// func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
+// 	if engine.trustedProxies == nil {
+// 		return nil, nil
+// 	}
 
-	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
-	for _, trustedProxy := range engine.trustedProxies {
-		if !strings.Contains(trustedProxy, "/") {
-			ip := parseIP(trustedProxy)
-			if ip == nil {
-				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
-			}
+// 	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
+// 	for _, trustedProxy := range engine.trustedProxies {
+// 		if !strings.Contains(trustedProxy, "/") {
+// 			ip := parseIP(trustedProxy)
+// 			if ip == nil {
+// 				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
+// 			}
 
-			switch len(ip) {
-			case net.IPv4len:
-				trustedProxy += "/32"
-			case net.IPv6len:
-				trustedProxy += "/128"
-			}
-		}
-		_, cidrNet, err := net.ParseCIDR(trustedProxy)
-		if err != nil {
-			return cidr, err
-		}
-		cidr = append(cidr, cidrNet)
-	}
-	return cidr, nil
-}
+// 			switch len(ip) {
+// 			case net.IPv4len:
+// 				trustedProxy += "/32"
+// 			case net.IPv6len:
+// 				trustedProxy += "/128"
+// 			}
+// 		}
+// 		_, cidrNet, err := net.ParseCIDR(trustedProxy)
+// 		if err != nil {
+// 			return cidr, err
+// 		}
+// 		cidr = append(cidr, cidrNet)
+// 	}
+// 	return cidr, nil
+// }
 
-// SetTrustedProxies set a list of network origins (IPv4 addresses,
-// IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust
-// request's headers that contain alternative client IP when
-// `(*gin.Engine).ForwardedByClientIP` is `true`. `TrustedProxies`
-// feature is enabled by default, and it also trusts all proxies
-// by default. If you want to disable this feature, use
-// Engine.SetTrustedProxies(nil), then Context.ClientIP() will
-// return the remote address directly.
-func (engine *Engine[T]) SetTrustedProxies(trustedProxies []string) error {
-	engine.trustedProxies = trustedProxies
-	return engine.parseTrustedProxies()
-}
+// // SetTrustedProxies set a list of network origins (IPv4 addresses,
+// // IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust
+// // request's headers that contain alternative client IP when
+// // `(*gin.Engine).ForwardedByClientIP` is `true`. `TrustedProxies`
+// // feature is enabled by default, and it also trusts all proxies
+// // by default. If you want to disable this feature, use
+// // Engine.SetTrustedProxies(nil), then Context.ClientIP() will
+// // return the remote address directly.
+// func (engine *Engine[T]) SetTrustedProxies(trustedProxies []string) error {
+// 	engine.trustedProxies = trustedProxies
+// 	return engine.parseTrustedProxies()
+// }
 
-// isUnsafeTrustedProxies checks if Engine.trustedCIDRs contains all IPs, it's not safe if it has (returns true)
-func (engine *Engine[T]) isUnsafeTrustedProxies() bool {
-	return engine.isTrustedProxy(net.ParseIP("0.0.0.0")) || engine.isTrustedProxy(net.ParseIP("::"))
-}
+// // isUnsafeTrustedProxies checks if Engine.trustedCIDRs contains all IPs, it's not safe if it has (returns true)
+// func (engine *Engine[T]) isUnsafeTrustedProxies() bool {
+// 	return engine.isTrustedProxy(net.ParseIP("0.0.0.0")) || engine.isTrustedProxy(net.ParseIP("::"))
+// }
 
-// parseTrustedProxies parse Engine.trustedProxies to Engine.trustedCIDRs
-func (engine *Engine[T]) parseTrustedProxies() error {
-	trustedCIDRs, err := engine.prepareTrustedCIDRs()
-	engine.trustedCIDRs = trustedCIDRs
-	return err
-}
+// // parseTrustedProxies parse Engine.trustedProxies to Engine.trustedCIDRs
+// func (engine *Engine[T]) parseTrustedProxies() error {
+// 	trustedCIDRs, err := engine.prepareTrustedCIDRs()
+// 	engine.trustedCIDRs = trustedCIDRs
+// 	return err
+// }
 
 // isTrustedProxy will check whether the IP address is included in the trusted list according to Engine.trustedCIDRs
-func (engine *Engine[T]) isTrustedProxy(ip net.IP) bool {
-	if engine.trustedCIDRs == nil {
-		return false
-	}
-	for _, cidr := range engine.trustedCIDRs {
-		if cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
+// func (engine *Engine[T]) isTrustedProxy(ip net.IP) bool {
+// 	if engine.trustedCIDRs == nil {
+// 		return false
+// 	}
+// 	for _, cidr := range engine.trustedCIDRs {
+// 		if cidr.Contains(ip) {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 // validateHeader will parse X-Forwarded-For header and return the trusted client IP address
-func (engine *Engine[T]) validateHeader(header string) (clientIP string, valid bool) {
-	if header == "" {
-		return "", false
-	}
-	items := strings.Split(header, ",")
-	for i := len(items) - 1; i >= 0; i-- {
-		ipStr := strings.TrimSpace(items[i])
-		ip := net.ParseIP(ipStr)
-		if ip == nil {
-			break
-		}
+// func (engine *Engine[T]) validateHeader(header string) (clientIP string, valid bool) {
+// 	if header == "" {
+// 		return "", false
+// 	}
+// 	items := strings.Split(header, ",")
+// 	for i := len(items) - 1; i >= 0; i-- {
+// 		ipStr := strings.TrimSpace(items[i])
+// 		ip := net.ParseIP(ipStr)
+// 		if ip == nil {
+// 			break
+// 		}
 
-		// X-Forwarded-For is appended by proxy
-		// Check IPs in reverse order and stop when find untrusted proxy
-		if (i == 0) || (!engine.isTrustedProxy(ip)) {
-			return ipStr, true
-		}
-	}
-	return "", false
-}
+// 		// X-Forwarded-For is appended by proxy
+// 		// Check IPs in reverse order and stop when find untrusted proxy
+// 		if (i == 0) || (!engine.isTrustedProxy(ip)) {
+// 			return ipStr, true
+// 		}
+// 	}
+// 	return "", false
+// }
 
 // updateRouteTree do update to the route tree recursively
 func updateRouteTree(n *node) {
@@ -550,10 +554,11 @@ func parseIP(ip string) net.IP {
 func (engine *Engine[T]) Run(addr ...string) (err error) {
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
+	// }
 	engine.updateRouteTrees()
 	address := resolveAddress(addr)
 	debugPrint("Listening and serving HTTP on %s\n", address)
@@ -568,10 +573,11 @@ func (engine *Engine[T]) RunTLS(addr, certFile, keyFile string) (err error) {
 	debugPrint("Listening and serving HTTPS on %s\n", addr)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
+	// }
 
 	err = http.ListenAndServeTLS(addr, certFile, keyFile, engine.Handler())
 	return
@@ -584,10 +590,11 @@ func (engine *Engine[T]) RunUnix(file string) (err error) {
 	debugPrint("Listening and serving HTTP on unix:/%s", file)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
+	// }
 
 	listener, err := net.Listen("unix", file)
 	if err != nil {
@@ -607,10 +614,11 @@ func (engine *Engine[T]) RunFd(fd int) (err error) {
 	debugPrint("Listening and serving HTTP on fd@%d", fd)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
+	// }
 
 	f := os.NewFile(uintptr(fd), fmt.Sprintf("fd@%d", fd))
 	listener, err := net.FileListener(f)
@@ -629,10 +637,11 @@ func (engine *Engine[T]) RunQUIC(addr, certFile, keyFile string) (err error) {
 	debugPrint("Listening and serving QUIC on %s\n", addr)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/nbcx/hi#readme-don-t-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://pkg.go.dev/github.com/nbcx/hi#readme-don-t-trust-all-proxies for details.")
+	// }
 
 	err = http3.ListenAndServeQUIC(addr, certFile, keyFile, engine.Handler())
 	return
@@ -644,10 +653,11 @@ func (engine *Engine[T]) RunListener(listener net.Listener) (err error) {
 	debugPrint("Listening and serving HTTP on listener what's bind with address@%s", listener.Addr())
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
-	}
+	// todo: del
+	// if engine.isUnsafeTrustedProxies() {
+	// 	debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
+	// 		"Please check https://github.com/nbcx/hi/blob/master/docs/doc.md#dont-trust-all-proxies for details.")
+	// }
 
 	err = http.Serve(listener, engine.Handler())
 	return
