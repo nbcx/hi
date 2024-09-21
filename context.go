@@ -684,6 +684,10 @@ func (c *Context) AddParam(key, value string) {
 	c.Params = append(c.Params, Param{Key: key, Value: value})
 }
 
+func (c *Context) SetParam(params Params) {
+	c.Params = params
+}
+
 // Query returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
 // It is shortcut for `c.Request.URL.Query().Get(key)`

@@ -52,6 +52,7 @@ type IContext interface {
 	Abort()
 	Error(err error) *Error
 	Param(key string) string
+	SetParam(Params)
 	FileFromFS(filepath string, fs http.FileSystem)
 	File(filepath string)
 }
@@ -718,7 +719,8 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		// Find route in tree
 		value := root.getValue(rPath, &maxParams, &skippedNodes, unescape)
 		if value.params != nil {
-			maxParams = *value.params
+			// maxParams = *value.params
+			c.SetParam(*value.params)
 		}
 		if value.handlers != nil {
 			// c.handlers = value.handlers
