@@ -373,9 +373,9 @@ func readWriteKeys(c *Context) {
 func githubConfigRouter(router *Engine[*Context]) {
 	for _, route := range githubAPI {
 		router.Handle(route.method, route.path, func(c *Context) {
-			output := make(map[string]string, len(c.Params)+1)
+			output := make(map[string]string, len(c.GetExecer().GetParams())+1)
 			output["status"] = "good"
-			for _, param := range c.Params {
+			for _, param := range c.GetExecer().GetParams() {
 				output[param.Key] = param.Value
 			}
 			c.JSON(http.StatusOK, output)

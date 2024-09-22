@@ -222,7 +222,7 @@ func (group *RouterGroup[T]) createStaticHandler(relativePath string, fs http.Fi
 			c.Rsp().WriteHeader(http.StatusNotFound)
 		}
 
-		file := c.Param("filepath")
+		file := c.GetExecer().Param("filepath")
 		// Check if file exists and/or if we have permission to access it
 		f, err := fs.Open(file)
 		if err != nil {

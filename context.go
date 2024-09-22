@@ -59,7 +59,7 @@ type Context struct {
 	Request   *http.Request
 	Writer    ResponseWriter
 
-	Params Params
+	// Params Params
 	// handlers HandlersChain[*Context]
 	execer Execer // todo: test
 	// index    int8
@@ -168,7 +168,7 @@ func (c *Context) GetKeys() map[string]any { return c.Keys }
 func (c *Context) GetErrors() errorMsgs    { return c.Errors }
 func (c *Context) Reset() {
 	c.Writer = &c.writermem
-	c.Params = c.Params[:0]
+	// c.Params = c.Params[:0]
 	// c.handlers = nil
 	c.execer = nil
 	// c.index = -1
@@ -208,9 +208,10 @@ func (c *Context) Copy() *Context {
 	}
 	c.mu.RUnlock()
 
-	cParams := c.Params
-	cp.Params = make([]Param, len(cParams))
-	copy(cp.Params, cParams)
+	// todo: need check
+	// cParams := c.Params
+	// cp.Params = make([]Param, len(cParams))
+	// copy(cp.Params, cParams)
 
 	return &cp
 }
@@ -264,42 +265,6 @@ func (c *Context) FullPath() string {
 // See example in GitHub.
 func (c *Context) Next() {
 	c.execer.Next()
-}
-
-// todo: wait check
-type Execer interface {
-	Next()
-	GetIndex() int8
-	SetIndex(int8)
-}
-
-func NewExecer[T IContext](ctx T, handlers HandlersChain[T]) Execer {
-	return &Exec[T]{ctx: ctx, handlers: handlers, index: -1}
-}
-
-type Exec[T IContext] struct {
-	index    int8
-	handlers HandlersChain[T]
-	ctx      T
-}
-
-func (c *Exec[T]) GetIndex() int8 {
-	return c.index
-}
-
-func (c *Exec[T]) SetIndex(index int8) {
-	c.index = index
-}
-
-func (c *Exec[T]) Next() {
-	c.index++
-	for c.index < int8(len(c.handlers)) {
-		if c.handlers[c.index] == nil {
-			continue
-		}
-		c.handlers[c.index](c.ctx)
-		c.index++
-	}
 }
 
 // IsAborted returns true if the current context was aborted.
@@ -672,7 +637,7 @@ func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string)
 //	    id := c.Param("id") // id == "/john/"
 //	})
 func (c *Context) Param(key string) string {
-	return c.Params.ByName(key)
+	return c.execer.Param(key)
 }
 
 // AddParam adds param to context and
@@ -680,13 +645,13 @@ func (c *Context) Param(key string) string {
 // Example Route: "/user/:id"
 // AddParam("id", 1)
 // Result: "/user/1"
-func (c *Context) AddParam(key, value string) {
-	c.Params = append(c.Params, Param{Key: key, Value: value})
-}
+// func (c *Context) AddParam(key, value string) {
+// 	c.Params = append(c.Params, Param{Key: key, Value: value})
+// }
 
-func (c *Context) SetParam(params Params) {
-	c.Params = params
-}
+// func (c *Context) SetParam(params Params) {
+// 	c.Params = params
+// }
 
 // Query returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
@@ -1023,8 +988,9 @@ func (c *Context) ShouldBindHeader(obj any) error {
 
 // ShouldBindUri binds the passed struct pointer using the specified binding engine.
 func (c *Context) ShouldBindUri(obj any) error {
-	m := make(map[string][]string, len(c.Params))
-	for _, v := range c.Params {
+	params := c.execer.GetParams()
+	m := make(map[string][]string, len(params))
+	for _, v := range params {
 		m[v.Key] = []string{v.Value}
 	}
 	return binding.Uri.BindUri(m, obj)

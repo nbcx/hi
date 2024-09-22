@@ -280,19 +280,19 @@ func TestRouteParamsByName(t *testing.T) {
 	wild := ""
 	router := New(&Context{})
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -313,19 +313,19 @@ func TestRouteParamsByNameWithExtraSlash(t *testing.T) {
 	router := New(&Context{})
 	router.RemoveExtraSlash = true
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -352,19 +352,19 @@ func TestRouteParamsNotEmpty(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -682,8 +682,9 @@ func TestRouteRawPath(t *testing.T) {
 	route.UseRawPath = true
 
 	route.POST("/project/:name/build/:num", func(c *Context) {
-		name := c.Params.ByName("name")
-		num := c.Params.ByName("num")
+
+		name := c.execer.GetParams().ByName("name")
+		num := c.execer.GetParams().ByName("num")
 
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, num, c.Param("num"))
@@ -702,8 +703,8 @@ func TestRouteRawPathNoUnescape(t *testing.T) {
 	route.UnescapePathValues = false
 
 	route.POST("/project/:name/build/:num", func(c *Context) {
-		name := c.Params.ByName("name")
-		num := c.Params.ByName("num")
+		name := c.execer.GetParams().ByName("name")
+		num := c.execer.GetParams().ByName("num")
 
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, num, c.Param("num"))

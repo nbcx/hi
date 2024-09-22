@@ -160,7 +160,7 @@ func TestContextReset(t *testing.T) {
 
 	c.execer.SetIndex(2)
 	c.Writer = &responseWriter{ResponseWriter: httptest.NewRecorder()}
-	c.Params = Params{Param{}}
+	// c.Params = Params{Param{}}
 	c.Error(errors.New("test")) //nolint: errcheck
 	c.Set("foo", "bar")
 	c.Reset()
@@ -171,7 +171,7 @@ func TestContextReset(t *testing.T) {
 	assert.Empty(t, c.Errors)
 	assert.Empty(t, c.Errors.Errors())
 	assert.Empty(t, c.Errors.ByType(ErrorTypeAny))
-	assert.Empty(t, c.Params)
+	// assert.Empty(t, c.Params)
 	assert.EqualValues(t, c.execer.GetIndex(), -1)
 	assert.Equal(t, c.Writer.(*responseWriter), &c.writermem)
 }
@@ -483,7 +483,7 @@ func TestContextCopy(t *testing.T) {
 	c.Request, _ = http.NewRequest("POST", "/hola", nil)
 	// todo: change test execer
 	// c.handlers = HandlersChain[*Context]{func(c *Context) {}}
-	c.Params = Params{Param{Key: "foo", Value: "bar"}}
+	// c.Params = Params{Param{Key: "foo", Value: "bar"}}
 	c.Set("foo", "bar")
 	c.fullPath = "/hola"
 
@@ -495,7 +495,7 @@ func TestContextCopy(t *testing.T) {
 	assert.Equal(t, abortIndex, c.execer.GetIndex())
 	assert.Equal(t, cp.Keys, c.Keys)
 	// assert.Equal(t, cp.engine, c.engine)
-	assert.Equal(t, cp.Params, c.Params)
+	// assert.Equal(t, cp.Params, c.Params)
 	cp.Set("foo", "notBar")
 	assert.NotEqual(t, cp.Keys["foo"], c.Keys["foo"])
 	assert.Equal(t, cp.fullPath, c.fullPath)
@@ -2981,16 +2981,16 @@ func TestContextCopyShouldNotCancel(t *testing.T) {
 	wg.Wait()
 }
 
-func TestContextAddParam(t *testing.T) {
-	c := &Context{}
-	id := "id"
-	value := "1"
-	c.AddParam(id, value)
+// func TestContextAddParam(t *testing.T) {
+// 	c := &Context{}
+// 	id := "id"
+// 	value := "1"
+// 	c.AddParam(id, value)
 
-	v, ok := c.Params.Get(id)
-	assert.True(t, ok)
-	assert.Equal(t, value, v)
-}
+// 	v, ok := c.Params.Get(id)
+// 	assert.True(t, ok)
+// 	assert.Equal(t, value, v)
+// }
 
 func TestCreateTestContextWithRouteParams(t *testing.T) {
 	w := httptest.NewRecorder()

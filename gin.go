@@ -29,30 +29,21 @@ type IContext interface {
 	Req() *http.Request
 	Rsp() ResponseWriter
 	Next()
-	WriterMem() *responseWriter
-	// SetParams(*Params)
-	// GetParams() *Params
-	// GetSkippedNodes() *[]SkippedNode
-	// SetHandlers(HandlersChain)
+	WriterMem() *responseWriter // todo: 待整合到Execer
 	SetExecer(Execer)
 	GetExecer() Execer
-	// GetIndex() int8
-	// SetIndex(int8)
-
-	SetFullPath(string)
+	SetFullPath(string) // todo: 待整合到Execer
 	Reset()
 	Bind(obj any) error
 	Header(key, value string)
 	AbortWithStatus(code int)
-	Set(key string, value any)
-	GetKeys() map[string]any
+	Set(key string, value any) // todo: 待移除
+	GetKeys() map[string]any   // todo: 待整合到Execer
 	GetErrors() errorMsgs
-	ClientIP() string
-	JSON(code int, obj any)
+	ClientIP() string       // todo: 待移除
+	JSON(code int, obj any) // todo: 待移除
 	Abort()
 	Error(err error) *Error
-	Param(key string) string
-	SetParam(Params)
 	FileFromFS(filepath string, fs http.FileSystem)
 	File(filepath string)
 }
@@ -223,6 +214,14 @@ func Default(opts ...OptionFunc[*Context]) *Engine[*Context] {
 	debugPrintWARNINGDefault()
 	engine := New(&Context{})
 	engine.Use(Logger[*Context](), Recovery[*Context]())
+	return engine.With(opts...)
+}
+
+// Default but set context returns an Engine instance with the Logger and Recovery middleware already attached.
+func DefaultWithContext[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
+	debugPrintWARNINGDefault()
+	engine := New(t)
+	engine.Use(Logger[T](), Recovery[T]())
 	return engine.With(opts...)
 }
 
@@ -720,7 +719,8 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		value := root.getValue(rPath, &maxParams, &skippedNodes, unescape)
 		if value.params != nil {
 			// maxParams = *value.params
-			c.SetParam(*value.params)
+			// c.SetParam(*value.params)
+			c.GetExecer().SetParams(*value.params)
 		}
 		if value.handlers != nil {
 			// c.handlers = value.handlers
