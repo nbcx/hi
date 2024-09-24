@@ -34,8 +34,16 @@ func (c *Context) FormArray(key string, defaultValue ...any) (nValues to.Values[
 	return to.ValuesF(to.ValuesF(defaultValue).String())
 }
 
-func (c *Context) FormMap(key string, defaultValue ...any) (nValues Values) {
-	return nil
+func (c *Context) FormMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
+	c.initFormCache()
+	val, ok := c.get(c.formCache, key)
+	if ok {
+		return to.ValueMF(val)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return defaultValue[0]
 }
 
 func (c *Context) Query2(key string, defaultValue ...string) (value to.Value) {

@@ -136,18 +136,6 @@ type Engine[T IContext] struct {
 	// handler.
 	HandleMethodNotAllowed bool
 
-	// ForwardedByClientIP if enabled, client IP will be parsed from the request's headers that
-	// match those stored at `(*gin.Engine).RemoteIPHeaders`. If no IP was
-	// fetched, it falls back to the IP obtained from
-	// `(*gin.Context).Request.RemoteAddr`.
-	// ForwardedByClientIP bool
-
-	// AppEngine was deprecated.
-	// Deprecated: USE `TrustedPlatform` WITH VALUE `gin.PlatformGoogleAppEngine` INSTEAD
-	// #726 #755 If enabled, it will trust some headers starting with
-	// 'X-AppEngine...' for better integration with that PaaS.
-	// AppEngine bool
-
 	// UseRawPath if enabled, the url.RawPath will be used to find parameters.
 	UseRawPath bool
 
@@ -186,15 +174,15 @@ type Engine[T IContext] struct {
 	// secureJSONPrefix string
 	// HTMLRender       render.HTMLRender
 	// FuncMap        template.FuncMap
-	allNoRoute     HandlersChain[T]
-	allNoMethod    HandlersChain[T]
-	noRoute        HandlersChain[T]
-	noMethod       HandlersChain[T]
-	pool           sync.Pool
-	trees          methodTrees[T]
-	maxParams      uint16
-	maxSections    uint16
-	trustedProxies []string
+	allNoRoute  HandlersChain[T]
+	allNoMethod HandlersChain[T]
+	noRoute     HandlersChain[T]
+	noMethod    HandlersChain[T]
+	pool        sync.Pool
+	trees       methodTrees[T]
+	maxParams   uint16
+	maxSections uint16
+	// trustedProxies []string
 	// trustedCIDRs     []*net.IPNet
 }
 
@@ -236,18 +224,12 @@ func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 		RedirectTrailingSlash:  true,
 		RedirectFixedPath:      false,
 		HandleMethodNotAllowed: false,
-		// ForwardedByClientIP:    true,
-		// RemoteIPHeaders:    []string{"X-Forwarded-For", "X-Real-IP"},
-		// TrustedPlatform:    defaultPlatform,
-		UseRawPath:         false,
-		RemoveExtraSlash:   false,
-		UnescapePathValues: true,
-		// MaxMultipartMemory: defaultMultipartMemory,
-		trees:  make(methodTrees[T], 0, 9),
-		delims: render.Delims{Left: "{{", Right: "}}"},
-		// secureJSONPrefix: "while(1);",
-		trustedProxies: []string{"0.0.0.0/0", "::/0"},
-		// trustedCIDRs:     defaultTrustedCIDRs,
+		UseRawPath:             false,
+		RemoveExtraSlash:       false,
+		UnescapePathValues:     true,
+		trees:                  make(methodTrees[T], 0, 9),
+		delims:                 render.Delims{Left: "{{", Right: "}}"},
+		// trustedProxies:         []string{"0.0.0.0/0", "::/0"},
 	}
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() any {
@@ -673,10 +655,9 @@ func (engine *Engine[T]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // HandleContext re-enters a context that has been rewritten.
 // This can be done by setting c.Request.URL.Path to your new target.
 // Disclaimer: You can loop yourself to deal with this, use wisely.
-// func (engine *Engine[T]) HandleContext(c T) {
+// func (engine *Engine[T]) HandleContext(c T, w http.ResponseWriter, req *http.Request) {
 // 	oldIndexValue := c.GetExecer().GetIndex()
-// 	c.Reset() // todo: small reset
-// 	engine.handleHTTPRequest(c)
+// 	engine.handleHTTPRequest(c, w, req)
 
 // 	// c.index = oldIndexValue
 // 	c.GetExecer().SetIndex(oldIndexValue)
@@ -702,7 +683,6 @@ func (engine *Engine[T]) handleHTTPRequest(c T, w http.ResponseWriter, req *http
 	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
 	maxParams := make(Params, 0, engine.maxParams)
 
-	// exec := c.GetExecer() // handlers: handlers,
 	// Find root of the tree for the given HTTP method
 	t := engine.trees
 	for i, tl := 0, len(t); i < tl; i++ {
@@ -749,8 +729,10 @@ func (engine *Engine[T]) handleHTTPRequest(c T, w http.ResponseWriter, req *http
 		}
 		if len(allowed) > 0 {
 			// c.handlers = engine.allNoMethod
-			c.SetExecer(NewExecer(c, engine.allNoMethod))
-			exec.WriterMem().Header().Set("Allow", strings.Join(allowed, ", "))
+			// c.SetExecer(NewExecer(c, engine.allNoMethod))
+			exec.handlers = engine.allNoMethod
+			exec.Header("Allow", strings.Join(allowed, ", "))
+			// exec.WriterMem().Header().Set("Allow", strings.Join(allowed, ", "))
 			serveError(c, http.StatusMethodNotAllowed, default405Body)
 			return
 		}

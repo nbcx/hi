@@ -12,14 +12,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/http2"
 )
 
@@ -518,59 +515,59 @@ func TestListOfRoutes(t *testing.T) {
 	})
 }
 
-func TestEngineHandleContext(t *testing.T) {
-	r := New(&Context{})
-	r.GET("/", func(c *Context) {
-		c.Request.URL.Path = "/v2"
-		r.HandleContext(c)
-	})
-	v2 := r.Group("/v2")
-	{
-		v2.GET("/", func(c *Context) {})
-	}
+// func TestEngineHandleContext(t *testing.T) {
+// 	r := New(&Context{})
+// 	r.GET("/", func(c *Context) {
+// 		c.Request.URL.Path = "/v2"
+// 		r.HandleContext(c)
+// 	})
+// 	v2 := r.Group("/v2")
+// 	{
+// 		v2.GET("/", func(c *Context) {})
+// 	}
 
-	assert.NotPanics(t, func() {
-		w := PerformRequest(r, "GET", "/")
-		assert.Equal(t, 301, w.Code)
-	})
-}
+// 	assert.NotPanics(t, func() {
+// 		w := PerformRequest(r, "GET", "/")
+// 		assert.Equal(t, 301, w.Code)
+// 	})
+// }
 
-func TestEngineHandleContextManyReEntries(t *testing.T) {
-	expectValue := 10000
+// func TestEngineHandleContextManyReEntries(t *testing.T) {
+// 	expectValue := 10000
 
-	var handlerCounter, middlewareCounter int64
+// 	var handlerCounter, middlewareCounter int64
 
-	r := New(&Context{})
-	r.Use(func(c *Context) {
-		atomic.AddInt64(&middlewareCounter, 1)
-	})
-	r.GET("/:count", func(c *Context) {
-		countStr := c.Param("count")
-		count, err := strconv.Atoi(countStr)
-		require.NoError(t, err)
+// 	r := New(&Context{})
+// 	r.Use(func(c *Context) {
+// 		atomic.AddInt64(&middlewareCounter, 1)
+// 	})
+// 	r.GET("/:count", func(c *Context) {
+// 		countStr := c.Param("count")
+// 		count, err := strconv.Atoi(countStr)
+// 		require.NoError(t, err)
 
-		n, err := c.Writer.Write([]byte("."))
-		require.NoError(t, err)
-		assert.Equal(t, 1, n)
+// 		n, err := c.Writer.Write([]byte("."))
+// 		require.NoError(t, err)
+// 		assert.Equal(t, 1, n)
 
-		switch {
-		case count > 0:
-			c.Request.URL.Path = "/" + strconv.Itoa(count-1)
-			r.HandleContext(c)
-		}
-	}, func(c *Context) {
-		atomic.AddInt64(&handlerCounter, 1)
-	})
+// 		switch {
+// 		case count > 0:
+// 			c.Request.URL.Path = "/" + strconv.Itoa(count-1)
+// 			r.HandleContext(c)
+// 		}
+// 	}, func(c *Context) {
+// 		atomic.AddInt64(&handlerCounter, 1)
+// 	})
 
-	assert.NotPanics(t, func() {
-		w := PerformRequest(r, "GET", "/"+strconv.Itoa(expectValue-1)) // include 0 value
-		assert.Equal(t, 200, w.Code)
-		assert.Equal(t, expectValue, w.Body.Len())
-	})
+// 	assert.NotPanics(t, func() {
+// 		w := PerformRequest(r, "GET", "/"+strconv.Itoa(expectValue-1)) // include 0 value
+// 		assert.Equal(t, 200, w.Code)
+// 		assert.Equal(t, expectValue, w.Body.Len())
+// 	})
 
-	assert.Equal(t, int64(expectValue), handlerCounter)
-	assert.Equal(t, int64(expectValue), middlewareCounter)
-}
+// 	assert.Equal(t, int64(expectValue), handlerCounter)
+// 	assert.Equal(t, int64(expectValue), middlewareCounter)
+// }
 
 // func TestPrepareTrustedCIRDsWith(t *testing.T) {
 // 	r := New(&Context{})

@@ -59,14 +59,8 @@ type Context struct {
 	Request *http.Request
 	Writer  ResponseWriter
 
-	// Params Params
 	// handlers HandlersChain[*Context]
 	execer Execer // todo: test
-	// index    int8
-
-	// engine       *Engine[IContext] // todo: need check
-	// params *Params
-	// skippedNodes *[]skippedNode
 
 	// This mutex protects Keys map.
 	mu sync.RWMutex
@@ -103,12 +97,6 @@ type Context struct {
 	// TrustedPlatform if set to a constant of value gin.Platform*, trusts the headers set by
 	// that platform, for example to determine the client IP
 	TrustedPlatform string
-
-	// AppEngine was deprecated.
-	// Deprecated: USE `TrustedPlatform` WITH VALUE `gin.PlatformGoogleAppEngine` INSTEAD
-	// #726 #755 If enabled, it will trust some headers starting with
-	// 'X-AppEngine...' for better integration with that PaaS.
-	// AppEngine bool
 
 	// RemoteIPHeaders list of headers used to obtain the client IP when
 	// `(*gin.Engine).ForwardedByClientIP` is `true` and
@@ -1281,20 +1269,20 @@ func (c *Context) DataFromReader(code int, contentLength int64, contentType stri
 }
 
 // File writes the specified file into the body stream in an efficient way.
-// func (c *Context) File(filepath string) {
-// 	http.ServeFile(c.Writer, c.Request, filepath)
-// }
+func (c *Context) File(filepath string) {
+	http.ServeFile(c.Writer, c.Request, filepath)
+}
 
 // FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
-// func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
-// 	defer func(old string) {
-// 		c.Request.URL.Path = old
-// 	}(c.Request.URL.Path)
+func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
+	defer func(old string) {
+		c.Request.URL.Path = old
+	}(c.Request.URL.Path)
 
-// 	c.Request.URL.Path = filepath
+	c.Request.URL.Path = filepath
 
-// 	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
-// }
+	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
+}
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
@@ -1484,79 +1472,80 @@ func (c *Context) Value(key any) any {
 // If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
 // the remote IP (coming from Request.RemoteAddr) is returned.
 func (c *Context) ClientIP() string {
-	// Check if we're running on a trusted platform, continue running backwards if error
-	if c.TrustedPlatform != "" {
-		// Developers can define their own header of Trusted Platform or use predefined constants
-		if addr := c.requestHeader(c.TrustedPlatform); addr != "" {
-			return addr
-		}
-	}
-
-	// Legacy "AppEngine" flag
-	// if c.AppEngine {
-	// 	log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
-	// 	if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
+	return ClientIP(c.Request)
+	// // Check if we're running on a trusted platform, continue running backwards if error
+	// if c.TrustedPlatform != "" {
+	// 	// Developers can define their own header of Trusted Platform or use predefined constants
+	// 	if addr := c.requestHeader(c.TrustedPlatform); addr != "" {
 	// 		return addr
 	// 	}
 	// }
 
-	// It also checks if the remoteIP is a trusted proxy or not.
-	// In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
-	// defined by Engine.SetTrustedProxies()
-	remoteIP := net.ParseIP(c.RemoteIP())
-	if remoteIP == nil {
-		return ""
-	}
-	trusted := c.isTrustedProxy(remoteIP)
+	// // Legacy "AppEngine" flag
+	// // if c.AppEngine {
+	// // 	log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
+	// // 	if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
+	// // 		return addr
+	// // 	}
+	// // }
 
-	if trusted && c.ForwardedByClientIP && c.RemoteIPHeaders != nil {
-		for _, headerName := range c.RemoteIPHeaders {
-			ip, valid := c.validateHeader(c.requestHeader(headerName))
-			if valid {
-				return ip
-			}
-		}
-	}
-	return remoteIP.String()
+	// // It also checks if the remoteIP is a trusted proxy or not.
+	// // In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
+	// // defined by Engine.SetTrustedProxies()
+	// remoteIP := net.ParseIP(c.RemoteIP())
+	// if remoteIP == nil {
+	// 	return ""
+	// }
+	// trusted := c.isTrustedProxy(remoteIP)
+
+	// if trusted && c.ForwardedByClientIP && c.RemoteIPHeaders != nil {
+	// 	for _, headerName := range c.RemoteIPHeaders {
+	// 		ip, valid := c.validateHeader(c.requestHeader(headerName))
+	// 		if valid {
+	// 			return ip
+	// 		}
+	// 	}
+	// }
+	// return remoteIP.String()
 }
 
 // isTrustedProxy will check whether the IP address is included in the trusted list according to Engine.trustedCIDRs
-func (c *Context) isTrustedProxy(ip net.IP) bool {
-	// 	if engine.trustedCIDRs == nil {
-	// 		return false
-	// 	}
-	if defaultTrustedCIDRs == nil {
-		return false
-	}
-	for _, cidr := range defaultTrustedCIDRs {
-		if cidr.Contains(ip) {
-			return true
-		}
-	}
-	return false
-}
+// func (c *Context) isTrustedProxy(ip net.IP) bool {
+// 	// 	if engine.trustedCIDRs == nil {
+// 	// 		return false
+// 	// 	}
+// 	if defaultTrustedCIDRs == nil {
+// 		return false
+// 	}
+// 	for _, cidr := range defaultTrustedCIDRs {
+// 		if cidr.Contains(ip) {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
 // validateHeader will parse X-Forwarded-For header and return the trusted client IP address
-func (c *Context) validateHeader(header string) (clientIP string, valid bool) {
-	if header == "" {
-		return "", false
-	}
-	items := strings.Split(header, ",")
-	for i := len(items) - 1; i >= 0; i-- {
-		ipStr := strings.TrimSpace(items[i])
-		ip := net.ParseIP(ipStr)
-		if ip == nil {
-			break
-		}
+// func (c *Context) validateHeader(header string) (clientIP string, valid bool) {
+// 	if header == "" {
+// 		return "", false
+// 	}
+// 	items := strings.Split(header, ",")
+// 	for i := len(items) - 1; i >= 0; i-- {
+// 		ipStr := strings.TrimSpace(items[i])
+// 		ip := net.ParseIP(ipStr)
+// 		if ip == nil {
+// 			break
+// 		}
 
-		// X-Forwarded-For is appended by proxy
-		// Check IPs in reverse order and stop when find untrusted proxy
-		if (i == 0) || (!c.isTrustedProxy(ip)) {
-			return ipStr, true
-		}
-	}
-	return "", false
-}
+// 		// X-Forwarded-For is appended by proxy
+// 		// Check IPs in reverse order and stop when find untrusted proxy
+// 		if (i == 0) || (!c.isTrustedProxy(ip)) {
+// 			return ipStr, true
+// 		}
+// 	}
+// 	return "", false
+// }
 
 // func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
 // 	if engine.trustedProxies == nil {

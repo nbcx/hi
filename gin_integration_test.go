@@ -15,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -382,32 +381,32 @@ func TestWithHttptestWithAutoSelectedPort(t *testing.T) {
 	testRequest(t, ts.URL+"/example")
 }
 
-func TestConcurrentHandleContext(t *testing.T) {
-	router := New(&Context{})
-	router.GET("/", func(c *Context) {
-		c.Request.URL.Path = "/example"
-		router.HandleContext(c)
-	})
-	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
+// func TestConcurrentHandleContext(t *testing.T) {
+// 	router := New(&Context{})
+// 	router.GET("/", func(c *Context) {
+// 		c.Request.URL.Path = "/example"
+// 		router.HandleContext(c)
+// 	})
+// 	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
-	var wg sync.WaitGroup
-	iterations := 200
-	wg.Add(iterations)
-	for i := 0; i < iterations; i++ {
-		go func() {
-			req, err := http.NewRequest(http.MethodGet, "/", nil)
-			assert.NoError(t, err)
+// 	var wg sync.WaitGroup
+// 	iterations := 200
+// 	wg.Add(iterations)
+// 	for i := 0; i < iterations; i++ {
+// 		go func() {
+// 			req, err := http.NewRequest(http.MethodGet, "/", nil)
+// 			assert.NoError(t, err)
 
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+// 			w := httptest.NewRecorder()
+// 			router.ServeHTTP(w, req)
 
-			assert.Equal(t, "it worked", w.Body.String(), "resp body should match")
-			assert.Equal(t, 200, w.Code, "should get a 200")
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-}
+// 			assert.Equal(t, "it worked", w.Body.String(), "resp body should match")
+// 			assert.Equal(t, 200, w.Code, "should get a 200")
+// 			wg.Done()
+// 		}()
+// 	}
+// 	wg.Wait()
+// }
 
 // func TestWithHttptestWithSpecifiedPort(t *testing.T) {
 // 	router := New()

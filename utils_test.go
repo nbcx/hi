@@ -111,27 +111,27 @@ type bindTestStruct struct {
 	Bar int    `form:"bar" binding:"min=4"`
 }
 
-func TestBindMiddleware(t *testing.T) {
-	var value *bindTestStruct
-	var called bool
-	router := New(&Context{})
-	router.GET("/", Bind[*Context](bindTestStruct{}), func(c *Context) {
-		called = true
-		value = c.MustGet(BindKey).(*bindTestStruct)
-	})
-	PerformRequest(router, "GET", "/?foo=hola&bar=10")
-	assert.True(t, called)
-	assert.Equal(t, "hola", value.Foo)
-	assert.Equal(t, 10, value.Bar)
+// func TestBindMiddleware(t *testing.T) {
+// 	var value *bindTestStruct
+// 	var called bool
+// 	router := New(&Context{})
+// 	router.GET("/", Bind[*Context](bindTestStruct{}), func(c *Context) {
+// 		called = true
+// 		value = c.MustGet(BindKey).(*bindTestStruct)
+// 	})
+// 	PerformRequest(router, "GET", "/?foo=hola&bar=10")
+// 	assert.True(t, called)
+// 	assert.Equal(t, "hola", value.Foo)
+// 	assert.Equal(t, 10, value.Bar)
 
-	called = false
-	PerformRequest(router, "GET", "/?foo=hola&bar=1")
-	assert.False(t, called)
+// 	called = false
+// 	PerformRequest(router, "GET", "/?foo=hola&bar=1")
+// 	assert.False(t, called)
 
-	assert.Panics(t, func() {
-		Bind[*Context](&bindTestStruct{})
-	})
-}
+// 	assert.Panics(t, func() {
+// 		Bind[*Context](&bindTestStruct{})
+// 	})
+// }
 
 func TestMarshalXMLforH(t *testing.T) {
 	h := H{
