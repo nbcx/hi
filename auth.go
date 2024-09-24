@@ -52,8 +52,8 @@ func BasicAuthForRealm[T IContext](accounts Accounts, realm string) HandlerFunc[
 		user, found := pairs.searchCredential(c.Req().Header.Get("Authorization"))
 		if !found {
 			// Credentials doesn't match, we return 401 and abort handlers chain.
-			c.Header("WWW-Authenticate", realm)
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.GetExecer().Header("WWW-Authenticate", realm)
+			c.GetExecer().AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
@@ -101,8 +101,8 @@ func BasicAuthForProxy[T IContext](accounts Accounts, realm string) HandlerFunc[
 		proxyUser, found := pairs.searchCredential(c.Req().Header.Get("Proxy-Authorization"))
 		if !found {
 			// Credentials doesn't match, we return 407 and abort handlers chain.
-			c.Header("Proxy-Authenticate", realm)
-			c.AbortWithStatus(http.StatusProxyAuthRequired)
+			c.GetExecer().Header("Proxy-Authenticate", realm)
+			c.GetExecer().AbortWithStatus(http.StatusProxyAuthRequired)
 			return
 		}
 		// The proxy_user credentials was found, set proxy_user's id to key AuthProxyUserKey in this context, the proxy_user's id can be read later using

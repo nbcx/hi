@@ -11,7 +11,7 @@ func CreateTestContext(w http.ResponseWriter) (c *Context, r *Engine[*Context]) 
 	r = New(&Context{})
 	c = r.allocateContext(&Context{})
 	c.Reset()
-	c.writermem.reset(w)
+	c.GetExecer().WriterMem().reset(w)
 	return
 }
 
@@ -19,6 +19,6 @@ func CreateTestContext(w http.ResponseWriter) (c *Context, r *Engine[*Context]) 
 func CreateTestContextOnly(w http.ResponseWriter, r *Engine[*Context]) (c *Context) {
 	c = r.allocateContext(&Context{})
 	c.Reset()
-	c.writermem.reset(w)
+	c.GetExecer().WriterMem().reset(w)
 	return
 }

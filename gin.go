@@ -29,23 +29,14 @@ type IContext interface {
 	Req() *http.Request
 	Rsp() ResponseWriter
 	Next()
-	WriterMem() *responseWriter // todo: 待整合到Execer
+	Reset()
 	SetExecer(Execer)
 	GetExecer() Execer
-	SetFullPath(string) // todo: 待整合到Execer
-	Reset()
-	Bind(obj any) error
-	Header(key, value string)
-	AbortWithStatus(code int)
+
 	Set(key string, value any) // todo: 待移除
 	GetKeys() map[string]any   // todo: 待整合到Execer
 	GetErrors() errorMsgs
-	ClientIP() string       // todo: 待移除
-	JSON(code int, obj any) // todo: 待移除
-	Abort()
 	Error(err error) *Error
-	FileFromFS(filepath string, fs http.FileSystem)
-	File(filepath string)
 }
 
 const defaultMultipartMemory = 32 << 20 // 32 MB
@@ -671,9 +662,9 @@ func (engine *Engine[T]) RunListener(listener net.Listener) (err error) {
 // ServeHTTP conforms to the http.Handler interface.
 func (engine *Engine[T]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	c := engine.pool.Get().(T)
-	c.Init(w, req)
 
-	engine.handleHTTPRequest(c)
+	// c.Init(&Exec[T]{ctx: c, index: -1}, w, req)
+	engine.handleHTTPRequest(c, w, req)
 
 	// todo: 可自定义后，如果进行缓存，使用时需要额外的注意数据重置
 	engine.pool.Put(c)
@@ -682,17 +673,20 @@ func (engine *Engine[T]) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // HandleContext re-enters a context that has been rewritten.
 // This can be done by setting c.Request.URL.Path to your new target.
 // Disclaimer: You can loop yourself to deal with this, use wisely.
-func (engine *Engine[T]) HandleContext(c T) {
-	oldIndexValue := c.GetExecer().GetIndex()
-	c.Reset() // todo: small reset
-	engine.handleHTTPRequest(c)
+// func (engine *Engine[T]) HandleContext(c T) {
+// 	oldIndexValue := c.GetExecer().GetIndex()
+// 	c.Reset() // todo: small reset
+// 	engine.handleHTTPRequest(c)
 
-	// c.index = oldIndexValue
-	c.GetExecer().SetIndex(oldIndexValue)
-}
+// 	// c.index = oldIndexValue
+// 	c.GetExecer().SetIndex(oldIndexValue)
+// }
 
-func (engine *Engine[T]) handleHTTPRequest(c T) {
-	req := c.Req()
+func (engine *Engine[T]) handleHTTPRequest(c T, w http.ResponseWriter, req *http.Request) {
+	exec := &Exec[T]{ctx: c, index: -1}
+	exec.WriterMem().reset(w)
+	c.SetExecer(exec)
+	c.Init(w, req)
 	httpMethod := req.Method
 	rPath := req.URL.Path
 	unescape := false
@@ -708,6 +702,7 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 	skippedNodes := make([]SkippedNode[T], 0, engine.maxSections)
 	maxParams := make(Params, 0, engine.maxParams)
 
+	// exec := c.GetExecer() // handlers: handlers,
 	// Find root of the tree for the given HTTP method
 	t := engine.trees
 	for i, tl := 0, len(t); i < tl; i++ {
@@ -718,18 +713,14 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		// Find route in tree
 		value := root.getValue(rPath, &maxParams, &skippedNodes, unescape)
 		if value.params != nil {
-			// maxParams = *value.params
-			// c.SetParam(*value.params)
-			c.GetExecer().SetParams(*value.params)
+			exec.SetParams(*value.params)
 		}
 		if value.handlers != nil {
-			// c.handlers = value.handlers
-			// c.fullPath = value.fullPath
-			c.SetExecer(NewExecer(c, value.handlers))
-			// c.SetHandlers(value.handlers)
-			c.SetFullPath(value.fullPath)
+			exec.handlers = value.handlers
+			// exec.SetFullPath(value.fullPath)
+			exec.fullPath = value.fullPath
 			c.Next()
-			c.WriterMem().WriteHeaderNow()
+			exec.WriterMem().WriteHeaderNow()
 			return
 		}
 		if httpMethod != http.MethodConnect && rPath != "/" {
@@ -759,34 +750,35 @@ func (engine *Engine[T]) handleHTTPRequest(c T) {
 		if len(allowed) > 0 {
 			// c.handlers = engine.allNoMethod
 			c.SetExecer(NewExecer(c, engine.allNoMethod))
-			c.WriterMem().Header().Set("Allow", strings.Join(allowed, ", "))
+			exec.WriterMem().Header().Set("Allow", strings.Join(allowed, ", "))
 			serveError(c, http.StatusMethodNotAllowed, default405Body)
 			return
 		}
 	}
 
 	// c.handlers = engine.allNoRoute
-	c.SetExecer(NewExecer(c, engine.allNoRoute))
+	exec.handlers = engine.allNoRoute
+	// c.SetExecer(exec)
 	serveError(c, http.StatusNotFound, default404Body)
 }
 
 var mimePlain = []string{MIMEPlain}
 
 func serveError[T IContext](c T, code int, defaultMessage []byte) {
-	c.WriterMem().status = code
+	c.GetExecer().WriterMem().status = code
 	c.Next()
-	if c.WriterMem().Written() {
+	if c.GetExecer().WriterMem().Written() {
 		return
 	}
-	if c.WriterMem().Status() == code {
-		c.WriterMem().Header()["Content-Type"] = mimePlain
+	if c.GetExecer().WriterMem().Status() == code {
+		c.GetExecer().WriterMem().Header()["Content-Type"] = mimePlain
 		_, err := c.Rsp().Write(defaultMessage)
 		if err != nil {
 			debugPrint("cannot write message to writer during serve error: %v", err)
 		}
 		return
 	}
-	c.WriterMem().WriteHeaderNow()
+	c.GetExecer().WriterMem().WriteHeaderNow()
 }
 
 func redirectTrailingSlash[T IContext](c T) {
@@ -828,5 +820,5 @@ func redirectRequest[T IContext](c T) {
 	}
 	debugPrint("redirecting request %d: %s --> %s", code, rPath, rURL)
 	http.Redirect(c.Rsp(), req, rURL, code)
-	c.WriterMem().WriteHeaderNow()
+	c.GetExecer().WriterMem().WriteHeaderNow()
 }

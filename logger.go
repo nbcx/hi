@@ -171,20 +171,20 @@ func ForceConsoleColor() {
 }
 
 // ErrorLogger returns a HandlerFunc for any error type.
-func ErrorLogger[T IContext]() HandlerFunc[T] {
-	return ErrorLoggerT[T](ErrorTypeAny)
-}
+// func ErrorLogger[T IContext]() HandlerFunc[T] {
+// 	return ErrorLoggerT[T](ErrorTypeAny)
+// }
 
 // ErrorLoggerT returns a HandlerFunc for a given error type.
-func ErrorLoggerT[T IContext](typ ErrorType) HandlerFunc[T] {
-	return func(c T) {
-		c.Next()
-		errors := c.GetErrors().ByType(typ)
-		if len(errors) > 0 {
-			c.JSON(-1, errors)
-		}
-	}
-}
+// func ErrorLoggerT[T IContext](typ ErrorType) HandlerFunc[T] {
+// 	return func(c T) {
+// 		c.Next()
+// 		errors := c.GetErrors().ByType(typ)
+// 		if len(errors) > 0 {
+// 			c.JSON(-1, errors)
+// 		}
+// 	}
+// }
 
 // Logger instances a Logger middleware that will write the logs to gin.DefaultWriter.
 // By default, gin.DefaultWriter = os.Stdout.
@@ -262,7 +262,7 @@ func LoggerWithConfig[T IContext](conf LoggerConfig) HandlerFunc[T] {
 		param.TimeStamp = time.Now()
 		param.Latency = param.TimeStamp.Sub(start)
 
-		param.ClientIP = c.ClientIP()
+		param.ClientIP = ClientIP(c.Req()) //c.ClientIP()
 		param.Method = c.Req().Method
 		param.StatusCode = c.Rsp().Status()
 		param.ErrorMessage = c.GetErrors().ByType(ErrorTypePrivate).String()

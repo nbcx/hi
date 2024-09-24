@@ -165,7 +165,8 @@ func (group *RouterGroup[T]) Match(methods []string, relativePath string, handle
 // router.StaticFile("favicon.ico", "./resources/favicon.ico")
 func (group *RouterGroup[T]) StaticFile(relativePath, filepath string) IRoutes[T] {
 	return group.staticFileHandler(relativePath, func(c T) {
-		c.File(filepath)
+		// c.File(filepath)
+		http.ServeFile(c.Rsp(), c.Req(), filepath)
 	})
 }
 
@@ -174,7 +175,14 @@ func (group *RouterGroup[T]) StaticFile(relativePath, filepath string) IRoutes[T
 // Gin by default uses: gin.Dir()
 func (group *RouterGroup[T]) StaticFileFS(relativePath, filepath string, fs http.FileSystem) IRoutes[T] {
 	return group.staticFileHandler(relativePath, func(c T) {
-		c.FileFromFS(filepath, fs)
+		// c.FileFromFS(filepath, fs)
+		defer func(old string) {
+			c.Req().URL.Path = old
+		}(c.Req().URL.Path)
+
+		c.Req().URL.Path = filepath
+
+		http.FileServer(fs).ServeHTTP(c.Rsp(), c.Req())
 	})
 }
 
@@ -227,13 +235,7 @@ func (group *RouterGroup[T]) createStaticHandler(relativePath string, fs http.Fi
 		f, err := fs.Open(file)
 		if err != nil {
 			c.Rsp().WriteHeader(http.StatusNotFound)
-			// c.handlers = group.engine.noRoute
-			// c.SetHandlers(group.engine.noRoute)
 			c.SetExecer(NewExecer(c, group.engine.noRoute))
-			// Reset index
-			// c.index = -1
-			// c.SetIndex(-1)
-			c.GetExecer().SetIndex(-1)
 			return
 		}
 		f.Close()

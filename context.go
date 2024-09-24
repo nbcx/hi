@@ -55,15 +55,14 @@ type IEngine interface{}
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
-	writermem responseWriter
-	Request   *http.Request
-	Writer    ResponseWriter
+	// writermem responseWriter
+	Request *http.Request
+	Writer  ResponseWriter
 
 	// Params Params
 	// handlers HandlersChain[*Context]
 	execer Execer // todo: test
 	// index    int8
-	fullPath string
 
 	// engine       *Engine[IContext] // todo: need check
 	// params *Params
@@ -145,35 +144,34 @@ func (c *Context) New() {
 /********** CONTEXT CREATION ********/
 /************************************/
 func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
-	c.writermem.reset(w)
+	// c.writermem.reset(w)
+	// c.execer = execer
 	c.Request = req
 	c.Reset()
 }
-func (c *Context) Req() *http.Request         { return c.Request }
-func (c *Context) WriterMem() *responseWriter { return &c.writermem }
-func (c *Context) Rsp() ResponseWriter        { return c.Writer }
+func (c *Context) Req() *http.Request { return c.Request }
 
-// func (c *Context) SetParams(ps *Params)       { c.params = ps }
-// func (c *Context) GetParams() *Params         { return c.params }
+// func (c *Context) WriterMem() *responseWriter { return &c.writermem }
+func (c *Context) Rsp() ResponseWriter { return c.Writer }
 
-// func (c *Context) GetSkippedNodes() *[]skippedNode              { return c.skippedNodes }
 // func (c *Context) SetHandlers(handlers HandlersChain[*Context]) { c.handlers = handlers }
-func (c *Context) SetExecer(execer Execer)     { c.execer = execer }
-func (c *Context) GetExecer() Execer           { return c.execer }
-func (c *Context) SetFullPath(fullPath string) { c.fullPath = fullPath }
+func (c *Context) SetExecer(execer Execer) {
+	c.execer = execer
+}
+func (c *Context) GetExecer() Execer { return c.execer }
 
 // func (c *Context) GetIndex() int8              { return c.index }
 // func (c *Context) SetIndex(index int8)         { c.index = index }
 func (c *Context) GetKeys() map[string]any { return c.Keys }
 func (c *Context) GetErrors() errorMsgs    { return c.Errors }
 func (c *Context) Reset() {
-	c.Writer = &c.writermem
+	c.Writer = c.execer.WriterMem()
 	// c.Params = c.Params[:0]
 	// c.handlers = nil
-	c.execer = nil
+	// c.execer = nil
 	// c.index = -1
 
-	c.fullPath = ""
+	// c.fullPath = ""
 	c.Keys = nil
 	c.Errors = c.Errors[:0]
 	c.Accepted = nil
@@ -188,17 +186,16 @@ func (c *Context) Reset() {
 // This has to be used when the context has to be passed to a goroutine.
 func (c *Context) Copy() *Context {
 	cp := Context{
-		writermem: c.writermem,
-		Request:   c.Request,
+		// writermem: c.writermem,
+		Request: c.Request,
 		// engine:    c.engine,
 	}
 
-	cp.writermem.ResponseWriter = nil
-	cp.Writer = &cp.writermem
+	cp.execer.WriterMem().ResponseWriter = nil
+	cp.Writer = cp.execer.WriterMem()
 	// cp.index = abortIndex
-	cp.GetExecer().SetIndex(abortIndex)
+	cp.GetExecer().Abort() //SetIndex(abortIndex)
 	cp.execer = nil
-	cp.fullPath = c.fullPath
 
 	cKeys := c.Keys
 	cp.Keys = make(map[string]any, len(cKeys))
@@ -253,7 +250,7 @@ func (c *Context) Handler() HandlerFunc[*Context] {
 //	    c.FullPath() == "/user/:id" // true
 //	})
 func (c *Context) FullPath() string {
-	return c.fullPath
+	return c.execer.FullPath()
 }
 
 /************************************/
@@ -285,9 +282,9 @@ func (c *Context) Abort() {
 // AbortWithStatus calls `Abort()` and writes the headers with the specified status code.
 // For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
 func (c *Context) AbortWithStatus(code int) {
-	c.Status(code)
-	c.Writer.WriteHeaderNow()
-	c.Abort()
+	// c.Status(code)
+	// c.Writer.WriteHeaderNow()
+	c.execer.AbortWithStatus(code)
 }
 
 // AbortWithStatusJSON calls `Abort()` and then `JSON` internally.
@@ -1103,11 +1100,7 @@ func (c *Context) Status(code int) {
 // It writes a header in the response.
 // If value == "", this method removes the header `c.Writer.Header().Del(key)`
 func (c *Context) Header(key, value string) {
-	if value == "" {
-		c.Writer.Header().Del(key)
-		return
-	}
-	c.Writer.Header().Set(key, value)
+	c.execer.Header(key, value)
 }
 
 // GetHeader returns value from request headers.
@@ -1288,20 +1281,20 @@ func (c *Context) DataFromReader(code int, contentLength int64, contentType stri
 }
 
 // File writes the specified file into the body stream in an efficient way.
-func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer, c.Request, filepath)
-}
+// func (c *Context) File(filepath string) {
+// 	http.ServeFile(c.Writer, c.Request, filepath)
+// }
 
 // FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
-func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
-	defer func(old string) {
-		c.Request.URL.Path = old
-	}(c.Request.URL.Path)
+// func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
+// 	defer func(old string) {
+// 		c.Request.URL.Path = old
+// 	}(c.Request.URL.Path)
 
-	c.Request.URL.Path = filepath
+// 	c.Request.URL.Path = filepath
 
-	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
-}
+// 	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
+// }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 

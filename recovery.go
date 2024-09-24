@@ -100,7 +100,7 @@ func CustomRecoveryWithWriter[T IContext](out io.Writer, handle RecoveryFunc[T])
 				if brokenPipe {
 					// If the connection is dead, we can't write a status to it.
 					c.Error(err.(error)) //nolint: errcheck
-					c.Abort()
+					c.GetExecer().Abort()
 				} else {
 					handle(c, err)
 				}
@@ -111,7 +111,7 @@ func CustomRecoveryWithWriter[T IContext](out io.Writer, handle RecoveryFunc[T])
 }
 
 func defaultHandleRecovery[T IContext](c T, _ any) {
-	c.AbortWithStatus(http.StatusInternalServerError)
+	c.GetExecer().AbortWithStatus(http.StatusInternalServerError)
 }
 
 // stack returns a nicely formatted stack frame, skipping skip frames.

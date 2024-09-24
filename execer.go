@@ -9,6 +9,14 @@ type Execer interface {
 	SetParams(Params)
 	GetParams() Params
 	AddParam(key, value string)
+	SetFullPath(string) // todo: 待整合到Execer
+	FullPath() string
+	Copy() Execer
+	WriterMem() *responseWriter
+	SetWriterMem(rw responseWriter)
+	Abort()
+	Header(key, value string)
+	AbortWithStatus(code int)
 }
 
 func NewExecer[T IContext](ctx T, handlers HandlersChain[T]) Execer {
@@ -16,14 +24,56 @@ func NewExecer[T IContext](ctx T, handlers HandlersChain[T]) Execer {
 }
 
 type Exec[T IContext] struct {
-	index    int8
-	handlers HandlersChain[T]
-	ctx      T
-	Params   Params
+	index     int8
+	handlers  HandlersChain[T]
+	ctx       T
+	params    Params
+	fullPath  string
+	writerMem responseWriter
+}
+
+func (c *Exec[T]) Copy() Execer {
+	exec := &Exec[T]{} // todo: test
+	exec.fullPath = c.fullPath
+	return c
+}
+
+func (c *Exec[T]) Abort() {
+	c.index = abortIndex
+}
+
+func (c *Exec[T]) AbortWithStatus(code int) {
+	c.writerMem.WriteHeader(code)
+	c.writerMem.WriteHeaderNow()
+	c.Abort()
+}
+
+func (c *Exec[T]) Header(key, value string) {
+	if value == "" {
+		c.writerMem.Header().Del(key)
+		return
+	}
+	c.writerMem.Header().Set(key, value)
+}
+
+func (c *Exec[T]) WriterMem() *responseWriter {
+	return &c.writerMem
+}
+
+func (c *Exec[T]) SetWriterMem(rw responseWriter) {
+	c.writerMem = rw
+}
+
+func (c *Exec[T]) SetFullPath(fullPath string) {
+	c.fullPath = fullPath
 }
 
 func (c *Exec[T]) GetIndex() int8 {
 	return c.index
+}
+
+func (c *Exec[T]) FullPath() string {
+	return c.fullPath
 }
 
 func (c *Exec[T]) SetIndex(index int8) {
@@ -42,15 +92,15 @@ func (c *Exec[T]) Next() {
 }
 
 func (c *Exec[T]) Param(key string) string {
-	return c.Params.ByName(key)
+	return c.params.ByName(key)
 }
 
 func (c *Exec[T]) SetParams(params Params) {
-	c.Params = params
+	c.params = params
 }
 
 func (c *Exec[T]) GetParams() Params {
-	return c.Params
+	return c.params
 }
 
 // AddParam adds param to context and
@@ -59,5 +109,5 @@ func (c *Exec[T]) GetParams() Params {
 // AddParam("id", 1)
 // Result: "/user/1"
 func (c *Exec[T]) AddParam(key, value string) {
-	c.Params = append(c.Params, Param{Key: key, Value: value})
+	c.params = append(c.params, Param{Key: key, Value: value})
 }
