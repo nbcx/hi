@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gin-contrib/sse"
+	"github.com/nbcx/go-kit/to"
 	"github.com/nbcx/hi/binding"
 	"github.com/nbcx/hi/render"
 )
@@ -347,267 +348,6 @@ func (c *Context) Set(key string, value any) {
 	c.Keys[key] = value
 }
 
-// Get returns the value for the given key, ie: (value, true).
-// If the value does not exist it returns (nil, false)
-func (c *Context) Get(key string) (value any, exists bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	value, exists = c.Keys[key]
-	return
-}
-
-// MustGet returns the value for the given key if it exists, otherwise it panics.
-func (c *Context) MustGet(key string) any {
-	if value, exists := c.Get(key); exists {
-		return value
-	}
-	panic("Key \"" + key + "\" does not exist")
-}
-
-// GetString returns the value associated with the key as a string.
-func (c *Context) GetString(key string) (s string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		s, _ = val.(string)
-	}
-	return
-}
-
-// GetBool returns the value associated with the key as a boolean.
-func (c *Context) GetBool(key string) (b bool) {
-	if val, ok := c.Get(key); ok && val != nil {
-		b, _ = val.(bool)
-	}
-	return
-}
-
-// GetInt returns the value associated with the key as an integer.
-func (c *Context) GetInt(key string) (i int) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i, _ = val.(int)
-	}
-	return
-}
-
-// GetInt8 returns the value associated with the key as an integer 8.
-func (c *Context) GetInt8(key string) (i8 int8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i8, _ = val.(int8)
-	}
-	return
-}
-
-// GetInt16 returns the value associated with the key as an integer 16.
-func (c *Context) GetInt16(key string) (i16 int16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i16, _ = val.(int16)
-	}
-	return
-}
-
-// GetInt32 returns the value associated with the key as an integer 32.
-func (c *Context) GetInt32(key string) (i32 int32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i32, _ = val.(int32)
-	}
-	return
-}
-
-// GetInt64 returns the value associated with the key as an integer 64.
-func (c *Context) GetInt64(key string) (i64 int64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i64, _ = val.(int64)
-	}
-	return
-}
-
-// GetUint returns the value associated with the key as an unsigned integer.
-func (c *Context) GetUint(key string) (ui uint) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui, _ = val.(uint)
-	}
-	return
-}
-
-// GetUint8 returns the value associated with the key as an unsigned integer 8.
-func (c *Context) GetUint8(key string) (ui8 uint8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui8, _ = val.(uint8)
-	}
-	return
-}
-
-// GetUint16 returns the value associated with the key as an unsigned integer 16.
-func (c *Context) GetUint16(key string) (ui16 uint16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui16, _ = val.(uint16)
-	}
-	return
-}
-
-// GetUint32 returns the value associated with the key as an unsigned integer 32.
-func (c *Context) GetUint32(key string) (ui32 uint32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui32, _ = val.(uint32)
-	}
-	return
-}
-
-// GetUint64 returns the value associated with the key as an unsigned integer 64.
-func (c *Context) GetUint64(key string) (ui64 uint64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui64, _ = val.(uint64)
-	}
-	return
-}
-
-// GetFloat32 returns the value associated with the key as a float32.
-func (c *Context) GetFloat32(key string) (f32 float32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f32, _ = val.(float32)
-	}
-	return
-}
-
-// GetFloat64 returns the value associated with the key as a float64.
-func (c *Context) GetFloat64(key string) (f64 float64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f64, _ = val.(float64)
-	}
-	return
-}
-
-// GetTime returns the value associated with the key as time.
-func (c *Context) GetTime(key string) (t time.Time) {
-	if val, ok := c.Get(key); ok && val != nil {
-		t, _ = val.(time.Time)
-	}
-	return
-}
-
-// GetDuration returns the value associated with the key as a duration.
-func (c *Context) GetDuration(key string) (d time.Duration) {
-	if val, ok := c.Get(key); ok && val != nil {
-		d, _ = val.(time.Duration)
-	}
-	return
-}
-
-func (c *Context) GetIntSlice(key string) (is []int) {
-	if val, ok := c.Get(key); ok && val != nil {
-		is, _ = val.([]int)
-	}
-	return
-}
-
-func (c *Context) GetInt8Slice(key string) (i8s []int8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i8s, _ = val.([]int8)
-	}
-	return
-}
-
-func (c *Context) GetInt16Slice(key string) (i16s []int16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i16s, _ = val.([]int16)
-	}
-	return
-}
-
-func (c *Context) GetInt32Slice(key string) (i32s []int32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i32s, _ = val.([]int32)
-	}
-	return
-}
-
-func (c *Context) GetInt64Slice(key string) (i64s []int64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i64s, _ = val.([]int64)
-	}
-	return
-}
-
-func (c *Context) GetUintSlice(key string) (uis []uint) {
-	if val, ok := c.Get(key); ok && val != nil {
-		uis, _ = val.([]uint)
-	}
-	return
-}
-
-func (c *Context) GetUint8Slice(key string) (ui8s []uint8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui8s, _ = val.([]uint8)
-	}
-	return
-}
-
-func (c *Context) GetUint16Slice(key string) (ui16s []uint16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui16s, _ = val.([]uint16)
-	}
-	return
-}
-
-func (c *Context) GetUint32Slice(key string) (ui32s []uint32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui32s, _ = val.([]uint32)
-	}
-	return
-}
-
-func (c *Context) GetUint64Slice(key string) (ui64s []uint64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui64s, _ = val.([]uint64)
-	}
-	return
-}
-
-func (c *Context) GetFloat32Slice(key string) (f32s []float32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f32s, _ = val.([]float32)
-	}
-	return
-}
-
-func (c *Context) GetFloat64Slice(key string) (f64s []float64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f64s, _ = val.([]float64)
-	}
-	return
-}
-
-// GetStringSlice returns the value associated with the key as a slice of strings.
-func (c *Context) GetStringSlice(key string) (ss []string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ss, _ = val.([]string)
-	}
-	return
-}
-
-// GetStringMap returns the value associated with the key as a map of interfaces.
-func (c *Context) GetStringMap(key string) (sm map[string]any) {
-	if val, ok := c.Get(key); ok && val != nil {
-		sm, _ = val.(map[string]any)
-	}
-	return
-}
-
-// GetStringMapString returns the value associated with the key as a map of strings.
-func (c *Context) GetStringMapString(key string) (sms map[string]string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		sms, _ = val.(map[string]string)
-	}
-	return
-}
-
-// GetStringMapStringSlice returns the value associated with the key as a map to a slice of strings.
-func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		smss, _ = val.(map[string][]string)
-	}
-	return
-}
-
 /************************************/
 /************ INPUT DATA ************/
 /************************************/
@@ -621,8 +361,8 @@ func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string)
 //	    // a GET request to /user/john/
 //	    id := c.Param("id") // id == "/john/"
 //	})
-func (c *Context) Param(key string) string {
-	return c.execer.Param(key)
+func (c *Context) Param(key string) to.Value {
+	return to.Value(c.execer.Param(key))
 }
 
 // AddParam adds param to context and
@@ -647,47 +387,44 @@ func (c *Context) Param(key string) string {
 //		   c.Query("name") == "Manu"
 //		   c.Query("value") == ""
 //		   c.Query("wtf") == ""
-func (c *Context) Query(key string) (value string) {
-	value, _ = c.GetQuery(key)
-	return
-}
+// func (c *Context) Query(key string) (value string) {
+// 	value, _ = c.GetQuery(key)
+// 	return
+// }
 
-// DefaultQuery returns the keyed url query value if it exists,
+// Query returns the keyed url query value if it exists,
 // otherwise it returns the specified defaultValue string.
 // See: Query() and GetQuery() for further information.
 //
 //	GET /?name=Manu&lastname=
-//	c.DefaultQuery("name", "unknown") == "Manu"
-//	c.DefaultQuery("id", "none") == "none"
-//	c.DefaultQuery("lastname", "none") == ""
-func (c *Context) DefaultQuery(key, defaultValue string) string {
-	if value, ok := c.GetQuery(key); ok {
-		return value
+//	c.Query("name", "unknown") == "Manu"
+//	c.Query("id", "none") == "none"
+//	c.Query("lastname", "none") == ""
+func (c *Context) Query(key string, defaultValue ...string) (value to.Value) {
+	c.initQueryCache()
+	values, ok := c.queryCache[key]
+	if !ok || len(values) == 0 {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.ValueF(defaultValue[0])
 	}
-	return defaultValue
-}
-
-// GetQuery is like Query(), it returns the keyed url query value
-// if it exists `(value, true)` (even when the value is an empty string),
-// otherwise it returns `("", false)`.
-// It is shortcut for `c.Request.URL.Query().Get(key)`
-//
-//	GET /?name=Manu&lastname=
-//	("Manu", true) == c.GetQuery("name")
-//	("", false) == c.GetQuery("id")
-//	("", true) == c.GetQuery("lastname")
-func (c *Context) GetQuery(key string) (string, bool) {
-	if values, ok := c.GetQueryArray(key); ok {
-		return values[0], ok
-	}
-	return "", false
+	return to.ValueF(values[0])
 }
 
 // QueryArray returns a slice of strings for a given query key.
 // The length of the slice depends on the number of params with the given key.
-func (c *Context) QueryArray(key string) (values []string) {
-	values, _ = c.GetQueryArray(key)
-	return
+func (c *Context) QueryArray(key string, defaultValue ...any) (nValues to.Values[string]) {
+	c.initQueryCache()
+	values, ok := c.queryCache[key]
+	if ok {
+		return to.ValuesF(values)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return to.ValuesF(to.ValuesF(defaultValue).String())
 }
 
 func (c *Context) initQueryCache() {
@@ -702,62 +439,75 @@ func (c *Context) initQueryCache() {
 
 // GetQueryArray returns a slice of strings for a given query key, plus
 // a boolean value whether at least one value exists for the given key.
-func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
-	c.initQueryCache()
-	values, ok = c.queryCache[key]
-	return
-}
+// func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
+// 	c.initQueryCache()
+// 	values, ok = c.queryCache[key]
+// 	return
+// }
 
 // QueryMap returns a map for a given query key.
-func (c *Context) QueryMap(key string) (dicts map[string]string) {
-	dicts, _ = c.GetQueryMap(key)
-	return
-}
+// func (c *Context) QueryMap(key string) (dicts map[string]string) {
+// 	dicts, _ = c.GetQueryMap(key)
+// 	return
+// }
 
 // GetQueryMap returns a map for a given query key, plus a boolean value
 // whether at least one value exists for the given key.
-func (c *Context) GetQueryMap(key string) (map[string]string, bool) {
+// func (c *Context) GetQueryMap(key string) (map[string]string, bool) {
+// 	c.initQueryCache()
+// 	return c.get(c.queryCache, key)
+// }
+
+func (c *Context) QueryMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
 	c.initQueryCache()
-	return c.get(c.queryCache, key)
-}
-
-// PostForm returns the specified key from a POST urlencoded form or multipart form
-// when it exists, otherwise it returns an empty string `("")`.
-func (c *Context) PostForm(key string) (value string) {
-	value, _ = c.GetPostForm(key)
-	return
-}
-
-// DefaultPostForm returns the specified key from a POST urlencoded form or multipart form
-// when it exists, otherwise it returns the specified defaultValue string.
-// See: PostForm() and GetPostForm() for further information.
-func (c *Context) DefaultPostForm(key, defaultValue string) string {
-	if value, ok := c.GetPostForm(key); ok {
-		return value
+	val, ok := c.get(c.queryCache, key)
+	if ok {
+		return to.ValueMF(val)
 	}
-	return defaultValue
-}
-
-// GetPostForm is like PostForm(key). It returns the specified key from a POST urlencoded
-// form or multipart form when it exists `(value, true)` (even when the value is an empty string),
-// otherwise it returns ("", false).
-// For example, during a PATCH request to update the user's email:
-//
-//	    email=mail@example.com  -->  ("mail@example.com", true) := GetPostForm("email") // set email to "mail@example.com"
-//		   email=                  -->  ("", true) := GetPostForm("email") // set email to ""
-//	                            -->  ("", false) := GetPostForm("email") // do nothing with email
-func (c *Context) GetPostForm(key string) (string, bool) {
-	if values, ok := c.GetPostFormArray(key); ok {
-		return values[0], ok
+	if len(defaultValue) == 0 {
+		return
 	}
-	return "", false
+	return defaultValue[0]
 }
 
-// PostFormArray returns a slice of strings for a given form key.
+func (c *Context) Form(key string, defaultValue ...any) (value to.Value) {
+	c.initFormCache()
+	values, ok := c.formCache[key]
+	if !ok || len(values) == 0 {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.ValueF(defaultValue[0])
+	}
+	return to.ValueF(values[0])
+}
+
+// FormArray returns a slice of strings for a given form key.
 // The length of the slice depends on the number of params with the given key.
-func (c *Context) PostFormArray(key string) (values []string) {
-	values, _ = c.GetPostFormArray(key)
-	return
+func (c *Context) FormArray(key string, defaultValue ...any) (nValues to.Values[string]) {
+	c.initFormCache()
+	values, ok := c.formCache[key]
+	if ok {
+		return to.ValuesF(values)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return to.ValuesF(to.ValuesF(defaultValue).String())
+}
+
+// PostFormMap returns a map for a given form key.
+func (c *Context) FormMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
+	c.initFormCache()
+	val, ok := c.get(c.formCache, key)
+	if ok {
+		return to.ValueMF(val)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return defaultValue[0]
 }
 
 func (c *Context) initFormCache() {
@@ -771,14 +521,6 @@ func (c *Context) initFormCache() {
 		}
 		c.formCache = req.PostForm
 	}
-}
-
-// GetPostFormArray returns a slice of strings for a given form key, plus
-// a boolean value whether at least one value exists for the given key.
-func (c *Context) GetPostFormArray(key string) (values []string, ok bool) {
-	c.initFormCache()
-	values, ok = c.formCache[key]
-	return
 }
 
 // PostFormMap returns a map for a given form key.
@@ -1189,7 +931,7 @@ func (c *Context) SecureJSON(code int, obj any, secureJSONPrefix ...string) {
 // It adds padding to response body to request data from a server residing in a different domain than the client.
 // It also sets the Content-Type as "application/javascript".
 func (c *Context) JSONP(code int, obj any) {
-	callback := c.DefaultQuery("callback", "")
+	callback := c.Query("callback", "").String()
 	if callback == "" {
 		c.Render(code, render.JSON{Data: obj})
 		return
@@ -1443,160 +1185,7 @@ func (c *Context) Err() error {
 	return c.Request.Context().Err()
 }
 
-// Value returns the value associated with this context for key, or nil
-// if no value is associated with key. Successive calls to Value with
-// the same key returns the same result.
-func (c *Context) Value(key any) any {
-	if key == ContextRequestKey {
-		return c.Request
-	}
-	if key == ContextKey {
-		return c
-	}
-	if keyAsString, ok := key.(string); ok {
-		if val, exists := c.Get(keyAsString); exists {
-			return val
-		}
-	}
-	if !c.hasRequestContext() {
-		return nil
-	}
-	return c.Request.Context().Value(key)
-}
-
-//****** todo: 此函数实现过于复杂，后续需优化
-
 // ClientIP implements one best effort algorithm to return the real client IP.
-// It calls c.RemoteIP() under the hood, to check if the remote IP is a trusted proxy or not.
-// If it is it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
-// If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
-// the remote IP (coming from Request.RemoteAddr) is returned.
 func (c *Context) ClientIP() string {
 	return ClientIP(c.Request)
-	// // Check if we're running on a trusted platform, continue running backwards if error
-	// if c.TrustedPlatform != "" {
-	// 	// Developers can define their own header of Trusted Platform or use predefined constants
-	// 	if addr := c.requestHeader(c.TrustedPlatform); addr != "" {
-	// 		return addr
-	// 	}
-	// }
-
-	// // Legacy "AppEngine" flag
-	// // if c.AppEngine {
-	// // 	log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
-	// // 	if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
-	// // 		return addr
-	// // 	}
-	// // }
-
-	// // It also checks if the remoteIP is a trusted proxy or not.
-	// // In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
-	// // defined by Engine.SetTrustedProxies()
-	// remoteIP := net.ParseIP(c.RemoteIP())
-	// if remoteIP == nil {
-	// 	return ""
-	// }
-	// trusted := c.isTrustedProxy(remoteIP)
-
-	// if trusted && c.ForwardedByClientIP && c.RemoteIPHeaders != nil {
-	// 	for _, headerName := range c.RemoteIPHeaders {
-	// 		ip, valid := c.validateHeader(c.requestHeader(headerName))
-	// 		if valid {
-	// 			return ip
-	// 		}
-	// 	}
-	// }
-	// return remoteIP.String()
 }
-
-// isTrustedProxy will check whether the IP address is included in the trusted list according to Engine.trustedCIDRs
-// func (c *Context) isTrustedProxy(ip net.IP) bool {
-// 	// 	if engine.trustedCIDRs == nil {
-// 	// 		return false
-// 	// 	}
-// 	if defaultTrustedCIDRs == nil {
-// 		return false
-// 	}
-// 	for _, cidr := range defaultTrustedCIDRs {
-// 		if cidr.Contains(ip) {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// validateHeader will parse X-Forwarded-For header and return the trusted client IP address
-// func (c *Context) validateHeader(header string) (clientIP string, valid bool) {
-// 	if header == "" {
-// 		return "", false
-// 	}
-// 	items := strings.Split(header, ",")
-// 	for i := len(items) - 1; i >= 0; i-- {
-// 		ipStr := strings.TrimSpace(items[i])
-// 		ip := net.ParseIP(ipStr)
-// 		if ip == nil {
-// 			break
-// 		}
-
-// 		// X-Forwarded-For is appended by proxy
-// 		// Check IPs in reverse order and stop when find untrusted proxy
-// 		if (i == 0) || (!c.isTrustedProxy(ip)) {
-// 			return ipStr, true
-// 		}
-// 	}
-// 	return "", false
-// }
-
-// func (engine *Engine[T]) prepareTrustedCIDRs() ([]*net.IPNet, error) {
-// 	if engine.trustedProxies == nil {
-// 		return nil, nil
-// 	}
-
-// 	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
-// 	for _, trustedProxy := range engine.trustedProxies {
-// 		if !strings.Contains(trustedProxy, "/") {
-// 			ip := parseIP(trustedProxy)
-// 			if ip == nil {
-// 				return cidr, &net.ParseError{Type: "IP address", Text: trustedProxy}
-// 			}
-
-// 			switch len(ip) {
-// 			case net.IPv4len:
-// 				trustedProxy += "/32"
-// 			case net.IPv6len:
-// 				trustedProxy += "/128"
-// 			}
-// 		}
-// 		_, cidrNet, err := net.ParseCIDR(trustedProxy)
-// 		if err != nil {
-// 			return cidr, err
-// 		}
-// 		cidr = append(cidr, cidrNet)
-// 	}
-// 	return cidr, nil
-// }
-
-// SetTrustedProxies set a list of network origins (IPv4 addresses,
-// IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust
-// request's headers that contain alternative client IP when
-// `(*gin.Engine).ForwardedByClientIP` is `true`. `TrustedProxies`
-// feature is enabled by default, and it also trusts all proxies
-// by default. If you want to disable this feature, use
-// Engine.SetTrustedProxies(nil), then Context.ClientIP() will
-// return the remote address directly.
-// func (engine *Engine[T]) SetTrustedProxies(trustedProxies []string) error {
-// 	engine.trustedProxies = trustedProxies
-// 	return engine.parseTrustedProxies()
-// }
-
-// isUnsafeTrustedProxies checks if Engine.trustedCIDRs contains all IPs, it's not safe if it has (returns true)
-// func (engine *Engine[T]) isUnsafeTrustedProxies() bool {
-// 	return engine.isTrustedProxy(net.ParseIP("0.0.0.0")) || engine.isTrustedProxy(net.ParseIP("::"))
-// }
-
-// parseTrustedProxies parse Engine.trustedProxies to Engine.trustedCIDRs
-// func (engine *Engine[T]) parseTrustedProxies() error {
-// 	trustedCIDRs, err := engine.prepareTrustedCIDRs()
-// 	engine.trustedCIDRs = trustedCIDRs
-// 	return err
-// }

@@ -3,73 +3,37 @@ package hi
 import (
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/nbcx/go-kit/to"
 )
 
 // todo: 待整理
 
-func (c *Context) Form(key string, defaultValue ...any) (value to.Value) {
-	c.initFormCache()
-	values, ok := c.formCache[key]
-	if !ok || len(values) == 0 {
-		num := len(defaultValue)
-		if num == 0 {
-			return
-		}
-		return to.ValueF(defaultValue[0])
-	}
-	return to.ValueF(values[0])
-}
+// func (c *Context) Query2(key string, defaultValue ...string) (value to.Value) {
+// 	c.initQueryCache()
+// 	values, ok := c.queryCache[key]
+// 	if !ok || len(values) == 0 {
+// 		num := len(defaultValue)
+// 		if num == 0 {
+// 			return
+// 		}
+// 		return to.ValueF(defaultValue[0])
+// 	}
+// 	return to.ValueF(values[0])
+// }
 
-func (c *Context) FormArray(key string, defaultValue ...any) (nValues to.Values[string]) {
-	c.initFormCache()
-	values, ok := c.formCache[key]
-	if ok {
-		return to.ValuesF(values)
-	}
-	if len(defaultValue) == 0 {
-		return
-	}
-	return to.ValuesF(to.ValuesF(defaultValue).String())
-}
-
-func (c *Context) FormMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
-	c.initFormCache()
-	val, ok := c.get(c.formCache, key)
-	if ok {
-		return to.ValueMF(val)
-	}
-	if len(defaultValue) == 0 {
-		return
-	}
-	return defaultValue[0]
-}
-
-func (c *Context) Query2(key string, defaultValue ...string) (value to.Value) {
-	c.initQueryCache()
-	values, ok := c.queryCache[key]
-	if !ok || len(values) == 0 {
-		num := len(defaultValue)
-		if num == 0 {
-			return
-		}
-		return to.ValueF(defaultValue[0])
-	}
-	return to.ValueF(values[0])
-}
-
-func (c *Context) Query2Array(key string, defaultValue ...any) (nValues to.Values[string]) {
-	c.initQueryCache()
-	values, ok := c.queryCache[key]
-	if ok {
-		return to.ValuesF(values)
-	}
-	if len(defaultValue) == 0 {
-		return
-	}
-	return to.ValuesF(to.ValuesF(defaultValue).String())
-}
+// func (c *Context) Query2Array(key string, defaultValue ...any) (nValues to.Values[string]) {
+// 	c.initQueryCache()
+// 	values, ok := c.queryCache[key]
+// 	if ok {
+// 		return to.ValuesF(values)
+// 	}
+// 	if len(defaultValue) == 0 {
+// 		return
+// 	}
+// 	return to.ValuesF(to.ValuesF(defaultValue).String())
+// }
 
 type Values []Value
 
@@ -374,4 +338,288 @@ func (v Value) FloatE() (float64, error) {
 // GetFloat returns input value as float64 or the default value while it's present and input is blank.
 func (v Value) String() string {
 	return string(v)
+}
+
+///////////////////////////////////////////////////////////////////////
+
+// Value returns the value associated with this context for key, or nil
+// if no value is associated with key. Successive calls to Value with
+// the same key returns the same result.
+func (c *Context) Value(key any) any {
+	if key == ContextRequestKey {
+		return c.Request
+	}
+	if key == ContextKey {
+		return c
+	}
+	if keyAsString, ok := key.(string); ok {
+		if val, exists := c.Get(keyAsString); exists {
+			return val
+		}
+	}
+	if !c.hasRequestContext() {
+		return nil
+	}
+	return c.Request.Context().Value(key)
+}
+
+// Get returns the value for the given key, ie: (value, true).
+// If the value does not exist it returns (nil, false)
+func (c *Context) Get(key string) (value any, exists bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	value, exists = c.Keys[key]
+	return
+}
+
+// MustGet returns the value for the given key if it exists, otherwise it panics.
+func (c *Context) MustGet(key string) any {
+	if value, exists := c.Get(key); exists {
+		return value
+	}
+	panic("Key \"" + key + "\" does not exist")
+}
+
+// GetString returns the value associated with the key as a string.
+func (c *Context) GetString(key string) (s string) {
+	if val, ok := c.Get(key); ok && val != nil {
+		s, _ = val.(string)
+	}
+	return
+}
+
+// GetBool returns the value associated with the key as a boolean.
+func (c *Context) GetBool(key string) (b bool) {
+	if val, ok := c.Get(key); ok && val != nil {
+		b, _ = val.(bool)
+	}
+	return
+}
+
+// GetInt returns the value associated with the key as an integer.
+func (c *Context) GetInt(key string) (i int) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i, _ = val.(int)
+	}
+	return
+}
+
+// GetInt8 returns the value associated with the key as an integer 8.
+func (c *Context) GetInt8(key string) (i8 int8) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i8, _ = val.(int8)
+	}
+	return
+}
+
+// GetInt16 returns the value associated with the key as an integer 16.
+func (c *Context) GetInt16(key string) (i16 int16) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i16, _ = val.(int16)
+	}
+	return
+}
+
+// GetInt32 returns the value associated with the key as an integer 32.
+func (c *Context) GetInt32(key string) (i32 int32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i32, _ = val.(int32)
+	}
+	return
+}
+
+// GetInt64 returns the value associated with the key as an integer 64.
+func (c *Context) GetInt64(key string) (i64 int64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i64, _ = val.(int64)
+	}
+	return
+}
+
+// GetUint returns the value associated with the key as an unsigned integer.
+func (c *Context) GetUint(key string) (ui uint) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui, _ = val.(uint)
+	}
+	return
+}
+
+// GetUint8 returns the value associated with the key as an unsigned integer 8.
+func (c *Context) GetUint8(key string) (ui8 uint8) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui8, _ = val.(uint8)
+	}
+	return
+}
+
+// GetUint16 returns the value associated with the key as an unsigned integer 16.
+func (c *Context) GetUint16(key string) (ui16 uint16) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui16, _ = val.(uint16)
+	}
+	return
+}
+
+// GetUint32 returns the value associated with the key as an unsigned integer 32.
+func (c *Context) GetUint32(key string) (ui32 uint32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui32, _ = val.(uint32)
+	}
+	return
+}
+
+// GetUint64 returns the value associated with the key as an unsigned integer 64.
+func (c *Context) GetUint64(key string) (ui64 uint64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui64, _ = val.(uint64)
+	}
+	return
+}
+
+// GetFloat32 returns the value associated with the key as a float32.
+func (c *Context) GetFloat32(key string) (f32 float32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		f32, _ = val.(float32)
+	}
+	return
+}
+
+// GetFloat64 returns the value associated with the key as a float64.
+func (c *Context) GetFloat64(key string) (f64 float64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		f64, _ = val.(float64)
+	}
+	return
+}
+
+// GetTime returns the value associated with the key as time.
+func (c *Context) GetTime(key string) (t time.Time) {
+	if val, ok := c.Get(key); ok && val != nil {
+		t, _ = val.(time.Time)
+	}
+	return
+}
+
+// GetDuration returns the value associated with the key as a duration.
+func (c *Context) GetDuration(key string) (d time.Duration) {
+	if val, ok := c.Get(key); ok && val != nil {
+		d, _ = val.(time.Duration)
+	}
+	return
+}
+
+func (c *Context) GetIntSlice(key string) (is []int) {
+	if val, ok := c.Get(key); ok && val != nil {
+		is, _ = val.([]int)
+	}
+	return
+}
+
+func (c *Context) GetInt8Slice(key string) (i8s []int8) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i8s, _ = val.([]int8)
+	}
+	return
+}
+
+func (c *Context) GetInt16Slice(key string) (i16s []int16) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i16s, _ = val.([]int16)
+	}
+	return
+}
+
+func (c *Context) GetInt32Slice(key string) (i32s []int32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i32s, _ = val.([]int32)
+	}
+	return
+}
+
+func (c *Context) GetInt64Slice(key string) (i64s []int64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		i64s, _ = val.([]int64)
+	}
+	return
+}
+
+func (c *Context) GetUintSlice(key string) (uis []uint) {
+	if val, ok := c.Get(key); ok && val != nil {
+		uis, _ = val.([]uint)
+	}
+	return
+}
+
+func (c *Context) GetUint8Slice(key string) (ui8s []uint8) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui8s, _ = val.([]uint8)
+	}
+	return
+}
+
+func (c *Context) GetUint16Slice(key string) (ui16s []uint16) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui16s, _ = val.([]uint16)
+	}
+	return
+}
+
+func (c *Context) GetUint32Slice(key string) (ui32s []uint32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui32s, _ = val.([]uint32)
+	}
+	return
+}
+
+func (c *Context) GetUint64Slice(key string) (ui64s []uint64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ui64s, _ = val.([]uint64)
+	}
+	return
+}
+
+func (c *Context) GetFloat32Slice(key string) (f32s []float32) {
+	if val, ok := c.Get(key); ok && val != nil {
+		f32s, _ = val.([]float32)
+	}
+	return
+}
+
+func (c *Context) GetFloat64Slice(key string) (f64s []float64) {
+	if val, ok := c.Get(key); ok && val != nil {
+		f64s, _ = val.([]float64)
+	}
+	return
+}
+
+// GetStringSlice returns the value associated with the key as a slice of strings.
+func (c *Context) GetStringSlice(key string) (ss []string) {
+	if val, ok := c.Get(key); ok && val != nil {
+		ss, _ = val.([]string)
+	}
+	return
+}
+
+// GetStringMap returns the value associated with the key as a map of interfaces.
+func (c *Context) GetStringMap(key string) (sm map[string]any) {
+	if val, ok := c.Get(key); ok && val != nil {
+		sm, _ = val.(map[string]any)
+	}
+	return
+}
+
+// GetStringMapString returns the value associated with the key as a map of strings.
+func (c *Context) GetStringMapString(key string) (sms map[string]string) {
+	if val, ok := c.Get(key); ok && val != nil {
+		sms, _ = val.(map[string]string)
+	}
+	return
+}
+
+// GetStringMapStringSlice returns the value associated with the key as a map to a slice of strings.
+func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string) {
+	if val, ok := c.Get(key); ok && val != nil {
+		smss, _ = val.(map[string][]string)
+	}
+	return
 }

@@ -640,15 +640,15 @@ func TestContextQueryAndPostForm(t *testing.T) {
 		"/?both=GET&id=main&id=omit&array[]=first&array[]=second&ids[a]=hi&ids[b]=3.14", body)
 	c.Request.Header.Add("Content-Type", MIMEPOSTForm)
 
-	assert.Equal(t, "bar", c.DefaultPostForm("foo", "none"))
-	assert.Equal(t, "bar", c.PostForm("foo"))
+	assert.Equal(t, "bar", c.Form("foo", "none"))
+	assert.Equal(t, "bar", c.Form("foo"))
 	assert.Empty(t, c.Query("foo"))
 
-	value, ok := c.GetPostForm("page")
-	assert.True(t, ok)
+	value := c.Form("page")
+	// assert.True(t, ok)
 	assert.Equal(t, "11", value)
-	assert.Equal(t, "11", c.DefaultPostForm("page", "0"))
-	assert.Equal(t, "11", c.PostForm("page"))
+	assert.Equal(t, "11", c.Form("page", "0"))
+	assert.Equal(t, "11", c.Form("page"))
 	assert.Empty(t, c.Query("page"))
 
 	value, ok = c.GetPostForm("both")
@@ -668,7 +668,7 @@ func TestContextQueryAndPostForm(t *testing.T) {
 	value, ok = c.GetQuery("NoKey")
 	assert.False(t, ok)
 	assert.Empty(t, value)
-	value, ok = c.GetPostForm("NoKey")
+	value = c.Form("NoKey").String()
 	assert.False(t, ok)
 	assert.Empty(t, value)
 	assert.Equal(t, "nada", c.DefaultPostForm("NoKey", "nada"))
@@ -795,14 +795,14 @@ func TestContextPostFormMultipart(t *testing.T) {
 	assert.Equal(t, "first", values[0])
 	assert.Equal(t, "second", values[1])
 
-	values = c.PostFormArray("array")
+	values = c.FormArray("array")
 	assert.Equal(t, "first", values[0])
 	assert.Equal(t, "second", values[1])
 
-	values = c.PostFormArray("nokey")
+	values = c.FormArray("nokey")
 	assert.Empty(t, values)
 
-	values = c.PostFormArray("foo")
+	values = c.FormArray("foo")
 	assert.Len(t, values, 1)
 	assert.Equal(t, "bar", values[0])
 
