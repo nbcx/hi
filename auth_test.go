@@ -86,7 +86,8 @@ func TestBasicAuthSucceed(t *testing.T) {
 	router := New(&Context{})
 	router.Use(BasicAuth[*Context](accounts))
 	router.GET("/login", func(c *Context) {
-		c.String(http.StatusOK, c.MustGet(AuthUserKey).(string))
+		auk, _ := c.Get(AuthUserKey)
+		c.String(http.StatusOK, auk.(string))
 	})
 
 	w := httptest.NewRecorder()
@@ -105,7 +106,8 @@ func TestBasicAuth401(t *testing.T) {
 	router.Use(BasicAuth[*Context](accounts))
 	router.GET("/login", func(c *Context) {
 		called = true
-		c.String(http.StatusOK, c.MustGet(AuthUserKey).(string))
+		auk, _ := c.Get(AuthUserKey)
+		c.String(http.StatusOK, auk.(string))
 	})
 
 	w := httptest.NewRecorder()
@@ -125,7 +127,8 @@ func TestBasicAuth401WithCustomRealm(t *testing.T) {
 	router.Use(BasicAuthForRealm[*Context](accounts, "My Custom \"Realm\""))
 	router.GET("/login", func(c *Context) {
 		called = true
-		c.String(http.StatusOK, c.MustGet(AuthUserKey).(string))
+		auk, _ := c.Get(AuthUserKey)
+		c.String(http.StatusOK, auk.(string))
 	})
 
 	w := httptest.NewRecorder()
@@ -143,7 +146,8 @@ func TestBasicAuthForProxySucceed(t *testing.T) {
 	router := New(&Context{})
 	router.Use(BasicAuthForProxy[*Context](accounts, ""))
 	router.Any("/*proxyPath", func(c *Context) {
-		c.String(http.StatusOK, c.MustGet(AuthProxyUserKey).(string))
+		auk, _ := c.Get(AuthProxyUserKey)
+		c.String(http.StatusOK, auk.(string))
 	})
 
 	w := httptest.NewRecorder()
@@ -162,7 +166,8 @@ func TestBasicAuthForProxy407(t *testing.T) {
 	router.Use(BasicAuthForProxy[*Context](accounts, ""))
 	router.Any("/*proxyPath", func(c *Context) {
 		called = true
-		c.String(http.StatusOK, c.MustGet(AuthProxyUserKey).(string))
+		auk, _ := c.Get(AuthProxyUserKey)
+		c.String(http.StatusOK, auk.(string))
 	})
 
 	w := httptest.NewRecorder()

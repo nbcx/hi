@@ -1,7 +1,3 @@
-// Copyright 2014 Manu Martinez-Almeida. All rights reserved.
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file.
-
 package hi
 
 import (
@@ -56,9 +52,8 @@ type IEngine interface{}
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
-	// writermem responseWriter
-	Request *http.Request
-	Writer  ResponseWriter
+	Request  *http.Request
+	Response ResponseWriter
 
 	// handlers HandlersChain[*Context]
 	execer Execer // todo: test
@@ -141,7 +136,7 @@ func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
 func (c *Context) Req() *http.Request { return c.Request }
 
 // func (c *Context) WriterMem() *responseWriter { return &c.writermem }
-func (c *Context) Rsp() ResponseWriter { return c.Writer }
+func (c *Context) Rsp() ResponseWriter { return c.Response }
 
 // func (c *Context) SetHandlers(handlers HandlersChain[*Context]) { c.handlers = handlers }
 func (c *Context) SetExecer(execer Execer) {
@@ -154,7 +149,7 @@ func (c *Context) GetExecer() Execer { return c.execer }
 func (c *Context) GetKeys() map[string]any { return c.Keys }
 func (c *Context) GetErrors() errorMsgs    { return c.Errors }
 func (c *Context) Reset() {
-	c.Writer = c.execer.WriterMem()
+	c.Response = c.execer.WriterMem()
 	// c.Params = c.Params[:0]
 	// c.handlers = nil
 	// c.execer = nil
@@ -181,7 +176,7 @@ func (c *Context) Copy() *Context {
 	}
 
 	cp.execer.WriterMem().ResponseWriter = nil
-	cp.Writer = cp.execer.WriterMem()
+	cp.Response = cp.execer.WriterMem()
 	// cp.index = abortIndex
 	cp.GetExecer().Abort() //SetIndex(abortIndex)
 	cp.execer = nil
@@ -301,7 +296,7 @@ func (c *Context) Die() {
 // For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
 func (c *Context) DieWithStatus(code int) {
 	c.Status(code)
-	c.Writer.WriteHeaderNow()
+	c.Response.WriteHeaderNow()
 	c.Die()
 }
 
@@ -361,8 +356,16 @@ func (c *Context) Set(key string, value any) {
 //	    // a GET request to /user/john/
 //	    id := c.Param("id") // id == "/john/"
 //	})
-func (c *Context) Param(key string) to.Value {
-	return to.Value(c.execer.Param(key))
+func (c *Context) Param(key string, defaultValue ...any) (v to.Value) {
+	value := c.execer.Param(key)
+	if value == "" {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.ValueF(defaultValue[0])
+	}
+	return to.Value(value)
 }
 
 // AddParam adds param to context and
@@ -400,7 +403,7 @@ func (c *Context) Param(key string) to.Value {
 //	c.Query("name", "unknown") == "Manu"
 //	c.Query("id", "none") == "none"
 //	c.Query("lastname", "none") == ""
-func (c *Context) Query(key string, defaultValue ...string) (value to.Value) {
+func (c *Context) Query(key string, defaultValue ...any) (value to.Value) {
 	c.initQueryCache()
 	values, ok := c.queryCache[key]
 	if !ok || len(values) == 0 {
@@ -823,7 +826,7 @@ func bodyAllowedForStatus(status int) bool {
 
 // Status sets the HTTP response code.
 func (c *Context) Status(code int) {
-	c.Writer.WriteHeader(code)
+	c.Response.WriteHeader(code)
 }
 
 // Header is an intelligent shortcut for c.Writer.Header().Set(key, value).
@@ -858,7 +861,7 @@ func (c *Context) SetCookie(name, value string, maxAge int, path, domain string,
 	if path == "" {
 		path = "/"
 	}
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(c.Response, &http.Cookie{
 		Name:     name,
 		Value:    url.QueryEscape(value),
 		MaxAge:   maxAge,
@@ -874,6 +877,7 @@ func (c *Context) SetCookie(name, value string, maxAge int, path, domain string,
 // ErrNoCookie if not found. And return the named cookie is unescaped.
 // If multiple cookies match the given name, only one cookie will
 // be returned.
+// todo: 修改为返回Value
 func (c *Context) Cookie(name string) (string, error) {
 	cookie, err := c.Request.Cookie(name)
 	if err != nil {
@@ -888,12 +892,12 @@ func (c *Context) Render(code int, r render.Render) {
 	c.Status(code)
 
 	if !bodyAllowedForStatus(code) {
-		r.WriteContentType(c.Writer)
-		c.Writer.WriteHeaderNow()
+		r.WriteContentType(c.Response)
+		c.Response.WriteHeaderNow()
 		return
 	}
 
-	if err := r.Render(c.Writer); err != nil {
+	if err := r.Render(c.Response); err != nil {
 		// Pushing error to c.Errors
 		_ = c.Error(err)
 		c.Abort()
@@ -1012,7 +1016,7 @@ func (c *Context) DataFromReader(code int, contentLength int64, contentType stri
 
 // File writes the specified file into the body stream in an efficient way.
 func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer, c.Request, filepath)
+	http.ServeFile(c.Response, c.Request, filepath)
 }
 
 // FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
@@ -1023,7 +1027,7 @@ func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
 
 	c.Request.URL.Path = filepath
 
-	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
+	http.FileServer(fs).ServeHTTP(c.Response, c.Request)
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -1036,11 +1040,11 @@ func escapeQuotes(s string) string {
 // On the client side, the file will typically be downloaded with the given filename
 func (c *Context) FileAttachment(filepath, filename string) {
 	if isASCII(filename) {
-		c.Writer.Header().Set("Content-Disposition", `attachment; filename="`+escapeQuotes(filename)+`"`)
+		c.Response.Header().Set("Content-Disposition", `attachment; filename="`+escapeQuotes(filename)+`"`)
 	} else {
-		c.Writer.Header().Set("Content-Disposition", `attachment; filename*=UTF-8''`+url.QueryEscape(filename))
+		c.Response.Header().Set("Content-Disposition", `attachment; filename*=UTF-8''`+url.QueryEscape(filename))
 	}
-	http.ServeFile(c.Writer, c.Request, filepath)
+	http.ServeFile(c.Response, c.Request, filepath)
 }
 
 // SSEvent writes a Server-Sent Event into the body stream.
@@ -1054,7 +1058,7 @@ func (c *Context) SSEvent(name string, message any) {
 // Stream sends a streaming response and returns a boolean
 // indicates "Is client disconnected in middle of stream"
 func (c *Context) Stream(step func(w io.Writer) bool) bool {
-	w := c.Writer
+	w := c.Response
 	clientGone := w.CloseNotify()
 	for {
 		select {
