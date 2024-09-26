@@ -472,9 +472,9 @@ func TestRouteStaticNoListing(t *testing.T) {
 func TestRouterMiddlewareAndStatic(t *testing.T) {
 	router := New(&Context{})
 	static := router.Group("/", func(c *Context) {
-		c.Writer.Header().Add("Last-Modified", "Mon, 02 Jan 2006 15:04:05 MST")
-		c.Writer.Header().Add("Expires", "Mon, 02 Jan 2006 15:04:05 MST")
-		c.Writer.Header().Add("X-GIN", "Gin Framework")
+		c.Response.Header().Add("Last-Modified", "Mon, 02 Jan 2006 15:04:05 MST")
+		c.Response.Header().Add("Expires", "Mon, 02 Jan 2006 15:04:05 MST")
+		c.Response.Header().Add("X-GIN", "Gin Framework")
 	})
 	static.Static("/", "./")
 
