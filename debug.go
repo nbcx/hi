@@ -87,13 +87,13 @@ func debugPrintWARNINGDefault() {
 `)
 }
 
-func debugPrintWARNINGNew() {
-	debugPrint(`[WARNING] Running in "debug" mode. Switch to "release" mode in production.
- - using env:	export GIN_MODE=release
- - using code:	gin.SetMode(gin.ReleaseMode)
+// func debugPrintWARNINGNew() {
+// 	debugPrint(`[WARNING] Running in "debug" mode. Switch to "release" mode in production.
+//  - using env:	export GIN_MODE=release
+//  - using code:	gin.SetMode(gin.ReleaseMode)
 
-`)
-}
+// `)
+// }
 
 func debugPrintWARNINGSetHTMLTemplate() {
 	debugPrint(`[WARNING] Since SetHTMLTemplate() is NOT thread-safe. It should only be called

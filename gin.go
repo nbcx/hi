@@ -213,7 +213,6 @@ func DefaultWithContext[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
 // - UseRawPath:             false
 // - UnescapePathValues:     true
 func New[T IContext](t T, opts ...OptionFunc[T]) *Engine[T] {
-	debugPrintWARNINGNew()
 	engine := &Engine[T]{
 		RouterGroup: RouterGroup[T]{
 			Handlers: nil,

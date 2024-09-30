@@ -114,7 +114,6 @@ func TestDebugPrintWARNINGDefault(t *testing.T) {
 func TestDebugPrintWARNINGNew(t *testing.T) {
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintWARNINGNew()
 		SetMode(TestMode)
 	})
 	assert.Equal(t, "[GIN-debug] [WARNING] Running in \"debug\" mode. Switch to \"release\" mode in production.\n - using env:\texport GIN_MODE=release\n - using code:\tgin.SetMode(gin.ReleaseMode)\n\n", re)
