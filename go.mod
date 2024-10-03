@@ -4,6 +4,8 @@ go 1.23
 
 toolchain go1.23.0
 
+replace github.com/nbcx/go-kit => ../go-kit
+
 require (
 	github.com/bytedance/sonic v1.11.6
 	github.com/gin-contrib/sse v0.1.0

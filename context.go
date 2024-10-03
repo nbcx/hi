@@ -327,6 +327,61 @@ func (c *Context) Error(err error) *Error {
 	return parsedError
 }
 
+///////////////////////////////////////////////////////////////////////
+
+// todo: wait check, can remove
+// Value returns the value associated with this context for key, or nil
+// if no value is associated with key. Successive calls to Value with
+// the same key returns the same result.
+func (c *Context) Value(key any) any {
+	if key == ContextRequestKey {
+		return c.Request
+	}
+	if key == ContextKey {
+		return c
+	}
+	if keyAsString, ok := key.(string); ok {
+		if val := c.Get(keyAsString); !val.IsNil() {
+			return val.Any()
+		}
+	}
+	if !c.hasRequestContext() {
+		return nil
+	}
+	return c.Request.Context().Value(key)
+}
+
+// Get returns the value for the given key, ie: (value, true).
+// If the value does not exist it returns (nil, false)
+func (c *Context) Get(key string) (value *to.Value) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	value = to.V(c.Keys[key])
+	return
+}
+
+func (c *Context) Must(key string, defaultValue ...any) string {
+	return c.Got(key, defaultValue...).String()
+}
+
+func (c *Context) Got(key string, defaultValue ...any) (value *to.Value) {
+	if c.Request.Method == "GET" {
+		value = c.Query(key)
+		if value.IsNil() {
+			value = c.Form(key)
+		}
+	} else {
+		value = c.Form(key)
+		if value.IsNil() {
+			value = c.Query(key)
+		}
+	}
+	if value.IsNil() {
+		value = c.Param(key, defaultValue...)
+	}
+	return
+}
+
 /************************************/
 /******** METADATA MANAGEMENT********/
 /************************************/
@@ -356,16 +411,16 @@ func (c *Context) Set(key string, value any) {
 //	    // a GET request to /user/john/
 //	    id := c.Param("id") // id == "/john/"
 //	})
-func (c *Context) Param(key string, defaultValue ...any) (v to.Value) {
+func (c *Context) Param(key string, defaultValue ...any) (v *to.Value) {
 	value := c.execer.Param(key)
 	if value == "" {
 		num := len(defaultValue)
 		if num == 0 {
 			return
 		}
-		return to.ValueF(defaultValue[0])
+		return to.V(defaultValue[0])
 	}
-	return to.Value(value)
+	return to.V(value)
 }
 
 // AddParam adds param to context and
@@ -403,7 +458,7 @@ func (c *Context) Param(key string, defaultValue ...any) (v to.Value) {
 //	c.Query("name", "unknown") == "Manu"
 //	c.Query("id", "none") == "none"
 //	c.Query("lastname", "none") == ""
-func (c *Context) Query(key string, defaultValue ...any) (value to.Value) {
+func (c *Context) Query(key string, defaultValue ...any) (value *to.Value) {
 	c.initQueryCache()
 	values, ok := c.queryCache[key]
 	if !ok || len(values) == 0 {
@@ -411,9 +466,9 @@ func (c *Context) Query(key string, defaultValue ...any) (value to.Value) {
 		if num == 0 {
 			return
 		}
-		return to.ValueF(defaultValue[0])
+		return to.V(defaultValue[0])
 	}
-	return to.ValueF(values[0])
+	return to.V(values[0])
 }
 
 // QueryArray returns a slice of strings for a given query key.
@@ -422,12 +477,12 @@ func (c *Context) QueryArray(key string, defaultValue ...any) (nValues to.Values
 	c.initQueryCache()
 	values, ok := c.queryCache[key]
 	if ok {
-		return to.ValuesF(values)
+		return to.Vs(values)
 	}
 	if len(defaultValue) == 0 {
 		return
 	}
-	return to.ValuesF(to.ValuesF(defaultValue).String())
+	return to.Vs(to.Vs(defaultValue).String())
 }
 
 func (c *Context) initQueryCache() {
@@ -465,7 +520,7 @@ func (c *Context) QueryMap(key string, defaultValue ...to.ValueM[string, string]
 	c.initQueryCache()
 	val, ok := c.get(c.queryCache, key)
 	if ok {
-		return to.ValueMF(val)
+		return to.Vm(val)
 	}
 	if len(defaultValue) == 0 {
 		return
@@ -473,7 +528,7 @@ func (c *Context) QueryMap(key string, defaultValue ...to.ValueM[string, string]
 	return defaultValue[0]
 }
 
-func (c *Context) Form(key string, defaultValue ...any) (value to.Value) {
+func (c *Context) Form(key string, defaultValue ...any) (value *to.Value) {
 	c.initFormCache()
 	values, ok := c.formCache[key]
 	if !ok || len(values) == 0 {
@@ -481,9 +536,9 @@ func (c *Context) Form(key string, defaultValue ...any) (value to.Value) {
 		if num == 0 {
 			return
 		}
-		return to.ValueF(defaultValue[0])
+		return to.V(defaultValue[0])
 	}
-	return to.ValueF(values[0])
+	return to.V(values[0])
 }
 
 // FormArray returns a slice of strings for a given form key.
@@ -492,12 +547,12 @@ func (c *Context) FormArray(key string, defaultValue ...any) (nValues to.Values[
 	c.initFormCache()
 	values, ok := c.formCache[key]
 	if ok {
-		return to.ValuesF(values)
+		return to.Vs(values)
 	}
 	if len(defaultValue) == 0 {
 		return
 	}
-	return to.ValuesF(to.ValuesF(defaultValue).String())
+	return to.Vs(to.Vs(defaultValue).String())
 }
 
 // PostFormMap returns a map for a given form key.
@@ -505,7 +560,7 @@ func (c *Context) FormMap(key string, defaultValue ...to.ValueM[string, string])
 	c.initFormCache()
 	val, ok := c.get(c.formCache, key)
 	if ok {
-		return to.ValueMF(val)
+		return to.Vm(val)
 	}
 	if len(defaultValue) == 0 {
 		return
@@ -739,8 +794,8 @@ func (c *Context) ShouldBindWith(obj any, b binding.Binding) error {
 // ShouldBindWith for better performance if you need to call only once.
 func (c *Context) ShouldBindBodyWith(obj any, bb binding.BindingBody) (err error) {
 	var body []byte
-	if cb, ok := c.Get(BodyBytesKey); ok {
-		if cbb, ok := cb.([]byte); ok {
+	if cb := c.Get(BodyBytesKey); !cb.IsNil() {
+		if cbb, ok := cb.Any().([]byte); ok {
 			body = cbb
 		}
 	}
@@ -997,7 +1052,13 @@ func (c *Context) Redirect(code int, location string) {
 }
 
 // Data writes some data into the body stream and updates the HTTP code.
-func (c *Context) Data(code int, contentType string, data []byte) {
+func (c *Context) Data(code int, data []byte, contentTypes ...string) {
+	var contentType string
+	if len(contentTypes) == 0 {
+		contentType = "text/plain; charset=utf-8"
+	} else {
+		contentType = contentTypes[0]
+	}
 	c.Render(code, render.Data{
 		ContentType: contentType,
 		Data:        data,
