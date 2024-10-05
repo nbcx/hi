@@ -2,9 +2,7 @@ module github.com/nbcx/hi
 
 go 1.23
 
-toolchain go1.23.0
-
-replace github.com/nbcx/go-kit => ../go-kit
+// replace github.com/nbcx/go-kit => ../go-kit
 
 require (
 	github.com/bytedance/sonic v1.11.6
@@ -13,7 +11,7 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/json-iterator/go v1.1.12
 	github.com/mattn/go-isatty v0.0.20
-	github.com/nbcx/go-kit v0.0.0-20240926072815-03af731ac953
+	github.com/nbcx/go-kit v0.0.1
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/quic-go/quic-go v0.43.1
 	github.com/stretchr/testify v1.9.0
