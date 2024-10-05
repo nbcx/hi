@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"fmt"
@@ -35,7 +35,7 @@ func PerformRequest(r http.Handler, method, path string, headers ...header) *htt
 func testRouteOK(method string, t *testing.T) {
 	passed := false
 	passedAny := false
-	r := New()
+	r := New(&Context{})
 	r.Any("/test2", func(c *Context) {
 		passedAny = true
 	})
@@ -54,7 +54,7 @@ func testRouteOK(method string, t *testing.T) {
 // TestSingleRouteOK tests that POST route is correctly invoked.
 func testRouteNotOK(method string, t *testing.T) {
 	passed := false
-	router := New()
+	router := New(&Context{})
 	router.Handle(method, "/test_2", func(c *Context) {
 		passed = true
 	})
@@ -68,7 +68,7 @@ func testRouteNotOK(method string, t *testing.T) {
 // TestSingleRouteOK tests that POST route is correctly invoked.
 func testRouteNotOK2(method string, t *testing.T) {
 	passed := false
-	router := New()
+	router := New(&Context{})
 	router.HandleMethodNotAllowed = true
 	var methodRoute string
 	if method == http.MethodPost {
@@ -87,7 +87,7 @@ func testRouteNotOK2(method string, t *testing.T) {
 }
 
 func TestRouterMethod(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.PUT("/hey2", func(c *Context) {
 		c.String(http.StatusOK, "sup2")
 	})
@@ -143,7 +143,7 @@ func TestRouteNotOK2(t *testing.T) {
 }
 
 func TestRouteRedirectTrailingSlash(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.RedirectFixedPath = false
 	router.RedirectTrailingSlash = true
 	router.GET("/path", func(c *Context) {})
@@ -247,7 +247,7 @@ func TestRouteRedirectTrailingSlash(t *testing.T) {
 }
 
 func TestRouteRedirectFixedPath(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.RedirectFixedPath = true
 	router.RedirectTrailingSlash = false
 
@@ -278,21 +278,21 @@ func TestRouteParamsByName(t *testing.T) {
 	name := ""
 	lastName := ""
 	wild := ""
-	router := New()
+	router := New(&Context{})
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -310,22 +310,22 @@ func TestRouteParamsByNameWithExtraSlash(t *testing.T) {
 	name := ""
 	lastName := ""
 	wild := ""
-	router := New()
+	router := New(&Context{})
 	router.RemoveExtraSlash = true
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -345,26 +345,26 @@ func TestRouteParamsNotEmpty(t *testing.T) {
 	name := ""
 	lastName := ""
 	wild := ""
-	router := New()
+	router := New(&Context{})
 
 	w := PerformRequest(router, http.MethodGet, "/test/john/smith/is/super/great")
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	router.GET("/test/:name/:last_name/*wild", func(c *Context) {
-		name = c.Params.ByName("name")
-		lastName = c.Params.ByName("last_name")
+		name = c.execer.GetParams().ByName("name")
+		lastName = c.execer.GetParams().ByName("last_name")
 		var ok bool
-		wild, ok = c.Params.Get("wild")
+		wild, ok = c.execer.GetParams().Get("wild")
 
 		assert.True(t, ok)
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, lastName, c.Param("last_name"))
 
 		assert.Empty(t, c.Param("wtf"))
-		assert.Empty(t, c.Params.ByName("wtf"))
+		assert.Empty(t, c.execer.GetParams().ByName("wtf"))
 
-		wtf, ok := c.Params.Get("wtf")
+		wtf, ok := c.execer.GetParams().Get("wtf")
 		assert.Empty(t, wtf)
 		assert.False(t, ok)
 	})
@@ -393,7 +393,7 @@ func TestRouteStaticFile(t *testing.T) {
 	dir, filename := filepath.Split(f.Name())
 
 	// SETUP gin
-	router := New()
+	router := New(&Context{})
 	router.Static("/using_static", dir)
 	router.StaticFile("/result", f.Name())
 
@@ -427,7 +427,7 @@ func TestRouteStaticFileFS(t *testing.T) {
 
 	dir, filename := filepath.Split(f.Name())
 	// SETUP gin
-	router := New()
+	router := New(&Context{})
 	router.Static("/using_static", dir)
 	router.StaticFileFS("/result_fs", filename, Dir(dir, false))
 
@@ -448,7 +448,7 @@ func TestRouteStaticFileFS(t *testing.T) {
 
 // TestHandleStaticDir - ensure the root/sub dir handles properly
 func TestRouteStaticListingDir(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.StaticFS("/", Dir("./", true))
 
 	w := PerformRequest(router, http.MethodGet, "/")
@@ -460,7 +460,7 @@ func TestRouteStaticListingDir(t *testing.T) {
 
 // TestHandleHeadToDir - ensure the root/sub dir handles properly
 func TestRouteStaticNoListing(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.Static("/", "./")
 
 	w := PerformRequest(router, http.MethodGet, "/")
@@ -470,18 +470,18 @@ func TestRouteStaticNoListing(t *testing.T) {
 }
 
 func TestRouterMiddlewareAndStatic(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	static := router.Group("/", func(c *Context) {
-		c.Writer.Header().Add("Last-Modified", "Mon, 02 Jan 2006 15:04:05 MST")
-		c.Writer.Header().Add("Expires", "Mon, 02 Jan 2006 15:04:05 MST")
-		c.Writer.Header().Add("X-GIN", "Gin Framework")
+		c.Response.Header().Add("Last-Modified", "Mon, 02 Jan 2006 15:04:05 MST")
+		c.Response.Header().Add("Expires", "Mon, 02 Jan 2006 15:04:05 MST")
+		c.Response.Header().Add("X-GIN", "Gin Framework")
 	})
 	static.Static("/", "./")
 
 	w := PerformRequest(router, http.MethodGet, "/gin.go")
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "package gin")
+	assert.Contains(t, w.Body.String(), "package hi")
 	// Content-Type='text/plain; charset=utf-8' when go version <= 1.16,
 	// else, Content-Type='text/x-go; charset=utf-8'
 	assert.NotEqual(t, "", w.Header().Get("Content-Type"))
@@ -491,7 +491,7 @@ func TestRouterMiddlewareAndStatic(t *testing.T) {
 }
 
 func TestRouteNotAllowedEnabled(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.HandleMethodNotAllowed = true
 	router.POST("/path", func(c *Context) {})
 	w := PerformRequest(router, http.MethodGet, "/path")
@@ -506,17 +506,17 @@ func TestRouteNotAllowedEnabled(t *testing.T) {
 }
 
 func TestRouteNotAllowedEnabled2(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.HandleMethodNotAllowed = true
 	// add one methodTree to trees
-	router.addRoute(http.MethodPost, "/", HandlersChain{func(_ *Context) {}})
+	router.addRoute(http.MethodPost, "/", HandlersChain[*Context]{func(_ *Context) {}})
 	router.GET("/path2", func(c *Context) {})
 	w := PerformRequest(router, http.MethodPost, "/path2")
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
 func TestRouteNotAllowedEnabled3(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.HandleMethodNotAllowed = true
 	router.GET("/path", func(c *Context) {})
 	router.POST("/path", func(c *Context) {})
@@ -528,7 +528,7 @@ func TestRouteNotAllowedEnabled3(t *testing.T) {
 }
 
 func TestRouteNotAllowedDisabled(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.HandleMethodNotAllowed = false
 	router.POST("/path", func(c *Context) {})
 	w := PerformRequest(router, http.MethodGet, "/path")
@@ -543,7 +543,7 @@ func TestRouteNotAllowedDisabled(t *testing.T) {
 }
 
 func TestRouterNotFoundWithRemoveExtraSlash(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.RemoveExtraSlash = true
 	router.GET("/path", func(c *Context) {})
 	router.GET("/", func(c *Context) {})
@@ -566,7 +566,7 @@ func TestRouterNotFoundWithRemoveExtraSlash(t *testing.T) {
 }
 
 func TestRouterNotFound(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.RedirectFixedPath = true
 	router.GET("/path", func(c *Context) {})
 	router.GET("/dir/", func(c *Context) {})
@@ -611,13 +611,13 @@ func TestRouterNotFound(t *testing.T) {
 	assert.Equal(t, "map[Location:[/path]]", fmt.Sprint(w.Header()))
 
 	// Test special case where no node for the prefix "/" exists
-	router = New()
+	router = New(&Context{})
 	router.GET("/a", func(c *Context) {})
 	w = PerformRequest(router, http.MethodGet, "/")
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
 	// Reproduction test for the bug of issue #2843
-	router = New()
+	router = New(&Context{})
 	router.NoRoute(func(c *Context) {
 		if c.Request.RequestURI == "/login" {
 			c.String(http.StatusOK, "login")
@@ -633,7 +633,7 @@ func TestRouterNotFound(t *testing.T) {
 }
 
 func TestRouterStaticFSNotFound(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.StaticFS("/", http.FileSystem(http.Dir("/thisreallydoesntexist/")))
 	router.NoRoute(func(c *Context) {
 		c.String(http.StatusNotFound, "non existent")
@@ -647,7 +647,7 @@ func TestRouterStaticFSNotFound(t *testing.T) {
 }
 
 func TestRouterStaticFSFileNotFound(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 
 	router.StaticFS("/", http.FileSystem(http.Dir(".")))
 
@@ -658,7 +658,7 @@ func TestRouterStaticFSFileNotFound(t *testing.T) {
 
 // Reproduction test for the bug of issue #1805
 func TestMiddlewareCalledOnceByRouterStaticFSNotFound(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 
 	// Middleware must be called just only once by per request.
 	middlewareCalledNum := 0
@@ -678,12 +678,13 @@ func TestMiddlewareCalledOnceByRouterStaticFSNotFound(t *testing.T) {
 }
 
 func TestRouteRawPath(t *testing.T) {
-	route := New()
+	route := New(&Context{})
 	route.UseRawPath = true
 
 	route.POST("/project/:name/build/:num", func(c *Context) {
-		name := c.Params.ByName("name")
-		num := c.Params.ByName("num")
+
+		name := c.execer.GetParams().ByName("name")
+		num := c.execer.GetParams().ByName("num")
 
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, num, c.Param("num"))
@@ -697,13 +698,13 @@ func TestRouteRawPath(t *testing.T) {
 }
 
 func TestRouteRawPathNoUnescape(t *testing.T) {
-	route := New()
+	route := New(&Context{})
 	route.UseRawPath = true
 	route.UnescapePathValues = false
 
 	route.POST("/project/:name/build/:num", func(c *Context) {
-		name := c.Params.ByName("name")
-		num := c.Params.ByName("num")
+		name := c.execer.GetParams().ByName("name")
+		num := c.execer.GetParams().ByName("num")
 
 		assert.Equal(t, name, c.Param("name"))
 		assert.Equal(t, num, c.Param("num"))
@@ -717,7 +718,7 @@ func TestRouteRawPathNoUnescape(t *testing.T) {
 }
 
 func TestRouteServeErrorWithWriteHeader(t *testing.T) {
-	route := New()
+	route := New(&Context{})
 	route.Use(func(c *Context) {
 		c.Status(http.StatusMisdirectedRequest)
 		c.Next()
@@ -729,7 +730,7 @@ func TestRouteServeErrorWithWriteHeader(t *testing.T) {
 }
 
 func TestRouteContextHoldsFullPath(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 
 	// Test routes
 	routes := []string{
@@ -772,7 +773,7 @@ func TestRouteContextHoldsFullPath(t *testing.T) {
 }
 
 func TestEngineHandleMethodNotAllowedCornerCase(t *testing.T) {
-	r := New()
+	r := New(&Context{})
 	r.HandleMethodNotAllowed = true
 
 	base := r.Group("base")

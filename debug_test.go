@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"errors"
@@ -60,10 +60,10 @@ func TestDebugPrintError(t *testing.T) {
 func TestDebugPrintRoutes(t *testing.T) {
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintRoute("GET", "/path/to/route/:param", HandlersChain{func(c *Context) {}, handlerNameTest})
+		debugPrintRoute("GET", "/path/to/route/:param", HandlersChain[*Context]{func(c *Context) {}, handlerNameTest})
 		SetMode(TestMode)
 	})
-	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param     --> (.*/vendor/)?github.com/gin-gonic/gin.handlerNameTest \(2 handlers\)\n$`, re)
+	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param     --> (.*/vendor/)?github.com/nbcx/hi.handlerNameTest \(2 handlers\)\n$`, re)
 }
 
 func TestDebugPrintRouteFunc(t *testing.T) {
@@ -72,10 +72,10 @@ func TestDebugPrintRouteFunc(t *testing.T) {
 	}
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintRoute("GET", "/path/to/route/:param1/:param2", HandlersChain{func(c *Context) {}, handlerNameTest})
+		debugPrintRoute("GET", "/path/to/route/:param1/:param2", HandlersChain[*Context]{func(c *Context) {}, handlerNameTest})
 		SetMode(TestMode)
 	})
-	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param1/:param2           --> (.*/vendor/)?github.com/gin-gonic/gin.handlerNameTest \(2 handlers\)\n$`, re)
+	assert.Regexp(t, `^\[GIN-debug\] GET    /path/to/route/:param1/:param2           --> (.*/vendor/)?github.com/nbcx/hi.handlerNameTest \(2 handlers\)\n$`, re)
 }
 
 func TestDebugPrintLoadTemplate(t *testing.T) {
@@ -114,7 +114,6 @@ func TestDebugPrintWARNINGDefault(t *testing.T) {
 func TestDebugPrintWARNINGNew(t *testing.T) {
 	re := captureOutput(t, func() {
 		SetMode(DebugMode)
-		debugPrintWARNINGNew()
 		SetMode(TestMode)
 	})
 	assert.Equal(t, "[GIN-debug] [WARNING] Running in \"debug\" mode. Switch to \"release\" mode in production.\n - using env:\texport GIN_MODE=release\n - using code:\tgin.SetMode(gin.ReleaseMode)\n\n", re)

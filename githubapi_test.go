@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"fmt"
@@ -288,7 +288,7 @@ var githubAPI = []route{
 
 func TestShouldBindUri(t *testing.T) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 
 	type Person struct {
 		Name string `uri:"name" binding:"required"`
@@ -310,7 +310,7 @@ func TestShouldBindUri(t *testing.T) {
 
 func TestBindUri(t *testing.T) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 
 	type Person struct {
 		Name string `uri:"name" binding:"required"`
@@ -332,7 +332,7 @@ func TestBindUri(t *testing.T) {
 
 func TestBindUriError(t *testing.T) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 
 	type Member struct {
 		Number string `uri:"num" binding:"required,uuid"`
@@ -370,12 +370,12 @@ func readWriteKeys(c *Context) {
 	}
 }
 
-func githubConfigRouter(router *Engine) {
+func githubConfigRouter(router *Engine[*Context]) {
 	for _, route := range githubAPI {
 		router.Handle(route.method, route.path, func(c *Context) {
-			output := make(map[string]string, len(c.Params)+1)
+			output := make(map[string]string, len(c.GetExecer().GetParams())+1)
 			output["status"] = "good"
-			for _, param := range c.Params {
+			for _, param := range c.GetExecer().GetParams() {
 				output[param.Key] = param.Value
 			}
 			c.JSON(http.StatusOK, output)
@@ -385,7 +385,7 @@ func githubConfigRouter(router *Engine) {
 
 func TestGithubAPI(t *testing.T) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 	githubConfigRouter(router)
 
 	for _, route := range githubAPI {
@@ -437,14 +437,14 @@ func exampleFromPath(path string) (string, Params) {
 }
 
 func BenchmarkGithub(b *testing.B) {
-	router := New()
+	router := New(&Context{})
 	githubConfigRouter(router)
 	runRequest(b, router, http.MethodGet, "/legacy/issues/search/:owner/:repository/:state/:keyword")
 }
 
 func BenchmarkParallelGithub(b *testing.B) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 	githubConfigRouter(router)
 
 	req, _ := http.NewRequest(http.MethodPost, "/repos/manucorporat/sse/git/blobs", nil)
@@ -460,7 +460,7 @@ func BenchmarkParallelGithub(b *testing.B) {
 
 func BenchmarkParallelGithubDefault(b *testing.B) {
 	DefaultWriter = os.Stdout
-	router := New()
+	router := New(&Context{})
 	githubConfigRouter(router)
 
 	req, _ := http.NewRequest(http.MethodPost, "/repos/manucorporat/sse/git/blobs", nil)

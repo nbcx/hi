@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ var DebugPrintRouteFunc func(httpMethod, absolutePath, handlerName string, nuHan
 // DebugPrintFunc indicates debug log output format.
 var DebugPrintFunc func(format string, values ...interface{})
 
-func debugPrintRoute(httpMethod, absolutePath string, handlers HandlersChain) {
+func debugPrintRoute[T IContext](httpMethod, absolutePath string, handlers HandlersChain[T]) {
 	if IsDebugging() {
 		nuHandlers := len(handlers)
 		handlerName := nameOfFunction(handlers.Last())
@@ -87,13 +87,13 @@ func debugPrintWARNINGDefault() {
 `)
 }
 
-func debugPrintWARNINGNew() {
-	debugPrint(`[WARNING] Running in "debug" mode. Switch to "release" mode in production.
- - using env:	export GIN_MODE=release
- - using code:	gin.SetMode(gin.ReleaseMode)
+// func debugPrintWARNINGNew() {
+// 	debugPrint(`[WARNING] Running in "debug" mode. Switch to "release" mode in production.
+//  - using env:	export GIN_MODE=release
+//  - using code:	gin.SetMode(gin.ReleaseMode)
 
-`)
-}
+// `)
+// }
 
 func debugPrintWARNINGSetHTMLTemplate() {
 	debugPrint(`[WARNING] Since SetHTMLTemplate() is NOT thread-safe. It should only be called

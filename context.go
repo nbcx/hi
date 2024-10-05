@@ -1,13 +1,8 @@
-// Copyright 2014 Manu Martinez-Almeida. All rights reserved.
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file.
-
-package gin
+package hi
 
 import (
 	"errors"
 	"io"
-	"log"
 	"math"
 	"mime/multipart"
 	"net"
@@ -20,8 +15,9 @@ import (
 	"time"
 
 	"github.com/gin-contrib/sse"
-	"github.com/gin-gonic/gin/binding"
-	"github.com/gin-gonic/gin/render"
+	"github.com/nbcx/go-kit/to"
+	"github.com/nbcx/hi/binding"
+	"github.com/nbcx/hi/render"
 )
 
 // Content-Type MIME of the most common data formats.
@@ -51,21 +47,16 @@ const ContextRequestKey ContextKeyType = 0
 // abortIndex represents a typical value used in abort functions.
 const abortIndex int8 = math.MaxInt8 >> 1
 
+type IEngine interface{}
+
 // Context is the most important part of gin. It allows us to pass variables between middleware,
 // manage the flow, validate the JSON of a request and render a JSON response for example.
 type Context struct {
-	writermem responseWriter
-	Request   *http.Request
-	Writer    ResponseWriter
+	Request  *http.Request
+	Response ResponseWriter
 
-	Params   Params
-	handlers HandlersChain
-	index    int8
-	fullPath string
-
-	engine       *Engine
-	params       *Params
-	skippedNodes *[]skippedNode
+	// handlers HandlersChain[*Context]
+	execer Execer // todo: test
 
 	// This mutex protects Keys map.
 	mu sync.RWMutex
@@ -89,43 +80,106 @@ type Context struct {
 	// SameSite allows a server to define a cookie attribute making it impossible for
 	// the browser to send this cookie along with cross-site requests.
 	sameSite http.SameSite
+
+	// note: from engin field and func
+
+	// ContextWithFallback enable fallback Context.Deadline(), Context.Done(), Context.Err() and Context.Value() when Context.Request.Context() is not nil.
+	ContextWithFallback bool
+
+	// MaxMultipartMemory value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
+	// method call.
+	MaxMultipartMemory int64
+
+	// TrustedPlatform if set to a constant of value gin.Platform*, trusts the headers set by
+	// that platform, for example to determine the client IP
+	TrustedPlatform string
+
+	// RemoteIPHeaders list of headers used to obtain the client IP when
+	// `(*gin.Engine).ForwardedByClientIP` is `true` and
+	// `(*gin.Context).Request.RemoteAddr` is matched by at least one of the
+	// network origins of list defined by `(*gin.Engine).SetTrustedProxies()`.
+	RemoteIPHeaders []string
+
+	// ForwardedByClientIP if enabled, client IP will be parsed from the request's headers that
+	// match those stored at `(*gin.Engine).RemoteIPHeaders`. If no IP was
+	// fetched, it falls back to the IP obtained from
+	// `(*gin.Context).Request.RemoteAddr`.
+	ForwardedByClientIP bool
+
+	HTMLRender render.HTMLRender
+}
+
+func (c *Context) New() {
+	// v := make(Params, 0, maxParams)
+	// en := e.(*Engine[IContext])
+	// skippedNodes := make([]skippedNode, 0, maxSections)
+
+	// c.engine = en
+	// c.params = &v
+	// c.skippedNodes = &skippedNodes
+	c.ForwardedByClientIP = true
+	c.RemoteIPHeaders = []string{"X-Forwarded-For", "X-Real-IP"}
+	c.TrustedPlatform = defaultPlatform
+	c.MaxMultipartMemory = defaultMultipartMemory
+	// return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
 }
 
 /************************************/
 /********** CONTEXT CREATION ********/
 /************************************/
+func (c *Context) Init(w http.ResponseWriter, req *http.Request) {
+	// c.writermem.reset(w)
+	// c.execer = execer
+	c.Request = req
+	c.Reset()
+}
+func (c *Context) Req() *http.Request { return c.Request }
 
-func (c *Context) reset() {
-	c.Writer = &c.writermem
-	c.Params = c.Params[:0]
-	c.handlers = nil
-	c.index = -1
+// func (c *Context) WriterMem() *responseWriter { return &c.writermem }
+func (c *Context) Rsp() ResponseWriter { return c.Response }
 
-	c.fullPath = ""
+// func (c *Context) SetHandlers(handlers HandlersChain[*Context]) { c.handlers = handlers }
+func (c *Context) SetExecer(execer Execer) {
+	c.execer = execer
+}
+func (c *Context) GetExecer() Execer { return c.execer }
+
+// func (c *Context) GetIndex() int8              { return c.index }
+// func (c *Context) SetIndex(index int8)         { c.index = index }
+func (c *Context) GetKeys() map[string]any { return c.Keys }
+func (c *Context) GetErrors() errorMsgs    { return c.Errors }
+func (c *Context) Reset() {
+	c.Response = c.execer.WriterMem()
+	// c.Params = c.Params[:0]
+	// c.handlers = nil
+	// c.execer = nil
+	// c.index = -1
+
+	// c.fullPath = ""
 	c.Keys = nil
 	c.Errors = c.Errors[:0]
 	c.Accepted = nil
 	c.queryCache = nil
 	c.formCache = nil
 	c.sameSite = 0
-	*c.params = (*c.params)[:0]
-	*c.skippedNodes = (*c.skippedNodes)[:0]
+	// *c.params = (*c.params)[:0]
+	// *c.skippedNodes = (*c.skippedNodes)[:0]
 }
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
 // This has to be used when the context has to be passed to a goroutine.
 func (c *Context) Copy() *Context {
 	cp := Context{
-		writermem: c.writermem,
-		Request:   c.Request,
-		engine:    c.engine,
+		// writermem: c.writermem,
+		Request: c.Request,
+		// engine:    c.engine,
 	}
 
-	cp.writermem.ResponseWriter = nil
-	cp.Writer = &cp.writermem
-	cp.index = abortIndex
-	cp.handlers = nil
-	cp.fullPath = c.fullPath
+	cp.execer.WriterMem().ResponseWriter = nil
+	cp.Response = cp.execer.WriterMem()
+	// cp.index = abortIndex
+	cp.GetExecer().Abort() //SetIndex(abortIndex)
+	cp.execer = nil
 
 	cKeys := c.Keys
 	cp.Keys = make(map[string]any, len(cKeys))
@@ -135,9 +189,10 @@ func (c *Context) Copy() *Context {
 	}
 	c.mu.RUnlock()
 
-	cParams := c.Params
-	cp.Params = make([]Param, len(cParams))
-	copy(cp.Params, cParams)
+	// todo: need check
+	// cParams := c.Params
+	// cp.Params = make([]Param, len(cParams))
+	// copy(cp.Params, cParams)
 
 	return &cp
 }
@@ -145,25 +200,31 @@ func (c *Context) Copy() *Context {
 // HandlerName returns the main handler's name. For example if the handler is "handleGetUsers()",
 // this function will return "main.handleGetUsers".
 func (c *Context) HandlerName() string {
-	return nameOfFunction(c.handlers.Last())
+	// todo: wait check need
+	// return nameOfFunction(c.handlers.Last())
+	return ""
 }
 
 // HandlerNames returns a list of all registered handlers for this context in descending order,
 // following the semantics of HandlerName()
 func (c *Context) HandlerNames() []string {
-	hn := make([]string, 0, len(c.handlers))
-	for _, val := range c.handlers {
-		if val == nil {
-			continue
-		}
-		hn = append(hn, nameOfFunction(val))
-	}
-	return hn
+	// todo: wait check need
+	// hn := make([]string, 0, len(c.handlers))
+	// for _, val := range c.handlers {
+	// 	if val == nil {
+	// 		continue
+	// 	}
+	// 	hn = append(hn, nameOfFunction(val))
+	// }
+	// return hn
+	return nil
 }
 
 // Handler returns the main handler.
-func (c *Context) Handler() HandlerFunc {
-	return c.handlers.Last()
+func (c *Context) Handler() HandlerFunc[*Context] {
+	// todo: wait check need
+	// return c.handlers.Last()
+	return nil
 }
 
 // FullPath returns a matched route full path. For not found routes
@@ -173,7 +234,7 @@ func (c *Context) Handler() HandlerFunc {
 //	    c.FullPath() == "/user/:id" // true
 //	})
 func (c *Context) FullPath() string {
-	return c.fullPath
+	return c.execer.FullPath()
 }
 
 /************************************/
@@ -184,19 +245,13 @@ func (c *Context) FullPath() string {
 // It executes the pending handlers in the chain inside the calling handler.
 // See example in GitHub.
 func (c *Context) Next() {
-	c.index++
-	for c.index < int8(len(c.handlers)) {
-		if c.handlers[c.index] == nil {
-			continue
-		}
-		c.handlers[c.index](c)
-		c.index++
-	}
+	c.execer.Next()
 }
 
 // IsAborted returns true if the current context was aborted.
 func (c *Context) IsAborted() bool {
-	return c.index >= abortIndex
+	return c.execer.GetIndex() >= abortIndex
+	// return c.index >= abortIndex
 }
 
 // Abort prevents pending handlers from being called. Note that this will not stop the current handler.
@@ -204,15 +259,16 @@ func (c *Context) IsAborted() bool {
 // If the authorization fails (ex: the password does not match), call Abort to ensure the remaining handlers
 // for this request are not called.
 func (c *Context) Abort() {
-	c.index = abortIndex
+	// c.index = abortIndex
+	c.execer.SetIndex(abortIndex)
 }
 
 // AbortWithStatus calls `Abort()` and writes the headers with the specified status code.
 // For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
 func (c *Context) AbortWithStatus(code int) {
-	c.Status(code)
-	c.Writer.WriteHeaderNow()
-	c.Abort()
+	// c.Status(code)
+	// c.Writer.WriteHeaderNow()
+	c.execer.AbortWithStatus(code)
 }
 
 // AbortWithStatusJSON calls `Abort()` and then `JSON` internally.
@@ -229,6 +285,19 @@ func (c *Context) AbortWithStatusJSON(code int, jsonObj any) {
 func (c *Context) AbortWithError(code int, err error) *Error {
 	c.AbortWithStatus(code)
 	return c.Error(err)
+}
+
+// Die makes panic of USERSTOPRUN error and go to recover function if defined.
+func (c *Context) Die() {
+	panic(ErrAbort)
+}
+
+// AbortWithStatus calls `Abort()` and writes the headers with the specified status code.
+// For example, a failed attempt to authenticate a request could use: context.AbortWithStatus(401).
+func (c *Context) DieWithStatus(code int) {
+	c.Status(code)
+	c.Response.WriteHeaderNow()
+	c.Die()
 }
 
 /************************************/
@@ -258,6 +327,61 @@ func (c *Context) Error(err error) *Error {
 	return parsedError
 }
 
+///////////////////////////////////////////////////////////////////////
+
+// todo: wait check, can remove
+// Value returns the value associated with this context for key, or nil
+// if no value is associated with key. Successive calls to Value with
+// the same key returns the same result.
+func (c *Context) Value(key any) any {
+	if key == ContextRequestKey {
+		return c.Request
+	}
+	if key == ContextKey {
+		return c
+	}
+	if keyAsString, ok := key.(string); ok {
+		if val := c.Get(keyAsString); !val.IsNil() {
+			return val.Any()
+		}
+	}
+	if !c.hasRequestContext() {
+		return nil
+	}
+	return c.Request.Context().Value(key)
+}
+
+// Get returns the value for the given key, ie: (value, true).
+// If the value does not exist it returns (nil, false)
+func (c *Context) Get(key string) (value *to.Value) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	value = to.V(c.Keys[key])
+	return
+}
+
+func (c *Context) Must(key string, defaultValue ...any) string {
+	return c.Got(key, defaultValue...).String()
+}
+
+func (c *Context) Got(key string, defaultValue ...any) (value *to.Value) {
+	if c.Request.Method == "GET" {
+		value = c.Query(key)
+		if value.IsNil() {
+			value = c.Form(key)
+		}
+	} else {
+		value = c.Form(key)
+		if value.IsNil() {
+			value = c.Query(key)
+		}
+	}
+	if value.IsNil() {
+		value = c.Param(key, defaultValue...)
+	}
+	return
+}
+
 /************************************/
 /******** METADATA MANAGEMENT********/
 /************************************/
@@ -274,267 +398,6 @@ func (c *Context) Set(key string, value any) {
 	c.Keys[key] = value
 }
 
-// Get returns the value for the given key, ie: (value, true).
-// If the value does not exist it returns (nil, false)
-func (c *Context) Get(key string) (value any, exists bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	value, exists = c.Keys[key]
-	return
-}
-
-// MustGet returns the value for the given key if it exists, otherwise it panics.
-func (c *Context) MustGet(key string) any {
-	if value, exists := c.Get(key); exists {
-		return value
-	}
-	panic("Key \"" + key + "\" does not exist")
-}
-
-// GetString returns the value associated with the key as a string.
-func (c *Context) GetString(key string) (s string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		s, _ = val.(string)
-	}
-	return
-}
-
-// GetBool returns the value associated with the key as a boolean.
-func (c *Context) GetBool(key string) (b bool) {
-	if val, ok := c.Get(key); ok && val != nil {
-		b, _ = val.(bool)
-	}
-	return
-}
-
-// GetInt returns the value associated with the key as an integer.
-func (c *Context) GetInt(key string) (i int) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i, _ = val.(int)
-	}
-	return
-}
-
-// GetInt8 returns the value associated with the key as an integer 8.
-func (c *Context) GetInt8(key string) (i8 int8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i8, _ = val.(int8)
-	}
-	return
-}
-
-// GetInt16 returns the value associated with the key as an integer 16.
-func (c *Context) GetInt16(key string) (i16 int16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i16, _ = val.(int16)
-	}
-	return
-}
-
-// GetInt32 returns the value associated with the key as an integer 32.
-func (c *Context) GetInt32(key string) (i32 int32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i32, _ = val.(int32)
-	}
-	return
-}
-
-// GetInt64 returns the value associated with the key as an integer 64.
-func (c *Context) GetInt64(key string) (i64 int64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i64, _ = val.(int64)
-	}
-	return
-}
-
-// GetUint returns the value associated with the key as an unsigned integer.
-func (c *Context) GetUint(key string) (ui uint) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui, _ = val.(uint)
-	}
-	return
-}
-
-// GetUint8 returns the value associated with the key as an unsigned integer 8.
-func (c *Context) GetUint8(key string) (ui8 uint8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui8, _ = val.(uint8)
-	}
-	return
-}
-
-// GetUint16 returns the value associated with the key as an unsigned integer 16.
-func (c *Context) GetUint16(key string) (ui16 uint16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui16, _ = val.(uint16)
-	}
-	return
-}
-
-// GetUint32 returns the value associated with the key as an unsigned integer 32.
-func (c *Context) GetUint32(key string) (ui32 uint32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui32, _ = val.(uint32)
-	}
-	return
-}
-
-// GetUint64 returns the value associated with the key as an unsigned integer 64.
-func (c *Context) GetUint64(key string) (ui64 uint64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui64, _ = val.(uint64)
-	}
-	return
-}
-
-// GetFloat32 returns the value associated with the key as a float32.
-func (c *Context) GetFloat32(key string) (f32 float32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f32, _ = val.(float32)
-	}
-	return
-}
-
-// GetFloat64 returns the value associated with the key as a float64.
-func (c *Context) GetFloat64(key string) (f64 float64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f64, _ = val.(float64)
-	}
-	return
-}
-
-// GetTime returns the value associated with the key as time.
-func (c *Context) GetTime(key string) (t time.Time) {
-	if val, ok := c.Get(key); ok && val != nil {
-		t, _ = val.(time.Time)
-	}
-	return
-}
-
-// GetDuration returns the value associated with the key as a duration.
-func (c *Context) GetDuration(key string) (d time.Duration) {
-	if val, ok := c.Get(key); ok && val != nil {
-		d, _ = val.(time.Duration)
-	}
-	return
-}
-
-func (c *Context) GetIntSlice(key string) (is []int) {
-	if val, ok := c.Get(key); ok && val != nil {
-		is, _ = val.([]int)
-	}
-	return
-}
-
-func (c *Context) GetInt8Slice(key string) (i8s []int8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i8s, _ = val.([]int8)
-	}
-	return
-}
-
-func (c *Context) GetInt16Slice(key string) (i16s []int16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i16s, _ = val.([]int16)
-	}
-	return
-}
-
-func (c *Context) GetInt32Slice(key string) (i32s []int32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i32s, _ = val.([]int32)
-	}
-	return
-}
-
-func (c *Context) GetInt64Slice(key string) (i64s []int64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		i64s, _ = val.([]int64)
-	}
-	return
-}
-
-func (c *Context) GetUintSlice(key string) (uis []uint) {
-	if val, ok := c.Get(key); ok && val != nil {
-		uis, _ = val.([]uint)
-	}
-	return
-}
-
-func (c *Context) GetUint8Slice(key string) (ui8s []uint8) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui8s, _ = val.([]uint8)
-	}
-	return
-}
-
-func (c *Context) GetUint16Slice(key string) (ui16s []uint16) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui16s, _ = val.([]uint16)
-	}
-	return
-}
-
-func (c *Context) GetUint32Slice(key string) (ui32s []uint32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui32s, _ = val.([]uint32)
-	}
-	return
-}
-
-func (c *Context) GetUint64Slice(key string) (ui64s []uint64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ui64s, _ = val.([]uint64)
-	}
-	return
-}
-
-func (c *Context) GetFloat32Slice(key string) (f32s []float32) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f32s, _ = val.([]float32)
-	}
-	return
-}
-
-func (c *Context) GetFloat64Slice(key string) (f64s []float64) {
-	if val, ok := c.Get(key); ok && val != nil {
-		f64s, _ = val.([]float64)
-	}
-	return
-}
-
-// GetStringSlice returns the value associated with the key as a slice of strings.
-func (c *Context) GetStringSlice(key string) (ss []string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		ss, _ = val.([]string)
-	}
-	return
-}
-
-// GetStringMap returns the value associated with the key as a map of interfaces.
-func (c *Context) GetStringMap(key string) (sm map[string]any) {
-	if val, ok := c.Get(key); ok && val != nil {
-		sm, _ = val.(map[string]any)
-	}
-	return
-}
-
-// GetStringMapString returns the value associated with the key as a map of strings.
-func (c *Context) GetStringMapString(key string) (sms map[string]string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		sms, _ = val.(map[string]string)
-	}
-	return
-}
-
-// GetStringMapStringSlice returns the value associated with the key as a map to a slice of strings.
-func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string) {
-	if val, ok := c.Get(key); ok && val != nil {
-		smss, _ = val.(map[string][]string)
-	}
-	return
-}
-
 /************************************/
 /************ INPUT DATA ************/
 /************************************/
@@ -548,8 +411,16 @@ func (c *Context) GetStringMapStringSlice(key string) (smss map[string][]string)
 //	    // a GET request to /user/john/
 //	    id := c.Param("id") // id == "/john/"
 //	})
-func (c *Context) Param(key string) string {
-	return c.Params.ByName(key)
+func (c *Context) Param(key string, defaultValue ...any) (v *to.Value) {
+	value := c.execer.Param(key)
+	if value == "" {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.V(defaultValue[0])
+	}
+	return to.V(value)
 }
 
 // AddParam adds param to context and
@@ -557,9 +428,13 @@ func (c *Context) Param(key string) string {
 // Example Route: "/user/:id"
 // AddParam("id", 1)
 // Result: "/user/1"
-func (c *Context) AddParam(key, value string) {
-	c.Params = append(c.Params, Param{Key: key, Value: value})
-}
+// func (c *Context) AddParam(key, value string) {
+// 	c.Params = append(c.Params, Param{Key: key, Value: value})
+// }
+
+// func (c *Context) SetParam(params Params) {
+// 	c.Params = params
+// }
 
 // Query returns the keyed url query value if it exists,
 // otherwise it returns an empty string `("")`.
@@ -570,47 +445,44 @@ func (c *Context) AddParam(key, value string) {
 //		   c.Query("name") == "Manu"
 //		   c.Query("value") == ""
 //		   c.Query("wtf") == ""
-func (c *Context) Query(key string) (value string) {
-	value, _ = c.GetQuery(key)
-	return
-}
+// func (c *Context) Query(key string) (value string) {
+// 	value, _ = c.GetQuery(key)
+// 	return
+// }
 
-// DefaultQuery returns the keyed url query value if it exists,
+// Query returns the keyed url query value if it exists,
 // otherwise it returns the specified defaultValue string.
 // See: Query() and GetQuery() for further information.
 //
 //	GET /?name=Manu&lastname=
-//	c.DefaultQuery("name", "unknown") == "Manu"
-//	c.DefaultQuery("id", "none") == "none"
-//	c.DefaultQuery("lastname", "none") == ""
-func (c *Context) DefaultQuery(key, defaultValue string) string {
-	if value, ok := c.GetQuery(key); ok {
-		return value
+//	c.Query("name", "unknown") == "Manu"
+//	c.Query("id", "none") == "none"
+//	c.Query("lastname", "none") == ""
+func (c *Context) Query(key string, defaultValue ...any) (value *to.Value) {
+	c.initQueryCache()
+	values, ok := c.queryCache[key]
+	if !ok || len(values) == 0 {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.V(defaultValue[0])
 	}
-	return defaultValue
-}
-
-// GetQuery is like Query(), it returns the keyed url query value
-// if it exists `(value, true)` (even when the value is an empty string),
-// otherwise it returns `("", false)`.
-// It is shortcut for `c.Request.URL.Query().Get(key)`
-//
-//	GET /?name=Manu&lastname=
-//	("Manu", true) == c.GetQuery("name")
-//	("", false) == c.GetQuery("id")
-//	("", true) == c.GetQuery("lastname")
-func (c *Context) GetQuery(key string) (string, bool) {
-	if values, ok := c.GetQueryArray(key); ok {
-		return values[0], ok
-	}
-	return "", false
+	return to.V(values[0])
 }
 
 // QueryArray returns a slice of strings for a given query key.
 // The length of the slice depends on the number of params with the given key.
-func (c *Context) QueryArray(key string) (values []string) {
-	values, _ = c.GetQueryArray(key)
-	return
+func (c *Context) QueryArray(key string, defaultValue ...any) (nValues to.Values[string]) {
+	c.initQueryCache()
+	values, ok := c.queryCache[key]
+	if ok {
+		return to.Vs(values)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return to.Vs(to.Vs(defaultValue).String())
 }
 
 func (c *Context) initQueryCache() {
@@ -625,83 +497,88 @@ func (c *Context) initQueryCache() {
 
 // GetQueryArray returns a slice of strings for a given query key, plus
 // a boolean value whether at least one value exists for the given key.
-func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
-	c.initQueryCache()
-	values, ok = c.queryCache[key]
-	return
-}
+// func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
+// 	c.initQueryCache()
+// 	values, ok = c.queryCache[key]
+// 	return
+// }
 
 // QueryMap returns a map for a given query key.
-func (c *Context) QueryMap(key string) (dicts map[string]string) {
-	dicts, _ = c.GetQueryMap(key)
-	return
-}
+// func (c *Context) QueryMap(key string) (dicts map[string]string) {
+// 	dicts, _ = c.GetQueryMap(key)
+// 	return
+// }
 
 // GetQueryMap returns a map for a given query key, plus a boolean value
 // whether at least one value exists for the given key.
-func (c *Context) GetQueryMap(key string) (map[string]string, bool) {
+// func (c *Context) GetQueryMap(key string) (map[string]string, bool) {
+// 	c.initQueryCache()
+// 	return c.get(c.queryCache, key)
+// }
+
+func (c *Context) QueryMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
 	c.initQueryCache()
-	return c.get(c.queryCache, key)
-}
-
-// PostForm returns the specified key from a POST urlencoded form or multipart form
-// when it exists, otherwise it returns an empty string `("")`.
-func (c *Context) PostForm(key string) (value string) {
-	value, _ = c.GetPostForm(key)
-	return
-}
-
-// DefaultPostForm returns the specified key from a POST urlencoded form or multipart form
-// when it exists, otherwise it returns the specified defaultValue string.
-// See: PostForm() and GetPostForm() for further information.
-func (c *Context) DefaultPostForm(key, defaultValue string) string {
-	if value, ok := c.GetPostForm(key); ok {
-		return value
+	val, ok := c.get(c.queryCache, key)
+	if ok {
+		return to.Vm(val)
 	}
-	return defaultValue
-}
-
-// GetPostForm is like PostForm(key). It returns the specified key from a POST urlencoded
-// form or multipart form when it exists `(value, true)` (even when the value is an empty string),
-// otherwise it returns ("", false).
-// For example, during a PATCH request to update the user's email:
-//
-//	    email=mail@example.com  -->  ("mail@example.com", true) := GetPostForm("email") // set email to "mail@example.com"
-//		   email=                  -->  ("", true) := GetPostForm("email") // set email to ""
-//	                            -->  ("", false) := GetPostForm("email") // do nothing with email
-func (c *Context) GetPostForm(key string) (string, bool) {
-	if values, ok := c.GetPostFormArray(key); ok {
-		return values[0], ok
+	if len(defaultValue) == 0 {
+		return
 	}
-	return "", false
+	return defaultValue[0]
 }
 
-// PostFormArray returns a slice of strings for a given form key.
+func (c *Context) Form(key string, defaultValue ...any) (value *to.Value) {
+	c.initFormCache()
+	values, ok := c.formCache[key]
+	if !ok || len(values) == 0 {
+		num := len(defaultValue)
+		if num == 0 {
+			return
+		}
+		return to.V(defaultValue[0])
+	}
+	return to.V(values[0])
+}
+
+// FormArray returns a slice of strings for a given form key.
 // The length of the slice depends on the number of params with the given key.
-func (c *Context) PostFormArray(key string) (values []string) {
-	values, _ = c.GetPostFormArray(key)
-	return
+func (c *Context) FormArray(key string, defaultValue ...any) (nValues to.Values[string]) {
+	c.initFormCache()
+	values, ok := c.formCache[key]
+	if ok {
+		return to.Vs(values)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return to.Vs(to.Vs(defaultValue).String())
+}
+
+// PostFormMap returns a map for a given form key.
+func (c *Context) FormMap(key string, defaultValue ...to.ValueM[string, string]) (nValues to.ValueM[string, string]) {
+	c.initFormCache()
+	val, ok := c.get(c.formCache, key)
+	if ok {
+		return to.Vm(val)
+	}
+	if len(defaultValue) == 0 {
+		return
+	}
+	return defaultValue[0]
 }
 
 func (c *Context) initFormCache() {
 	if c.formCache == nil {
 		c.formCache = make(url.Values)
 		req := c.Request
-		if err := req.ParseMultipartForm(c.engine.MaxMultipartMemory); err != nil {
+		if err := req.ParseMultipartForm(c.MaxMultipartMemory); err != nil {
 			if !errors.Is(err, http.ErrNotMultipart) {
 				debugPrint("error on parse multipart form array: %v", err)
 			}
 		}
 		c.formCache = req.PostForm
 	}
-}
-
-// GetPostFormArray returns a slice of strings for a given form key, plus
-// a boolean value whether at least one value exists for the given key.
-func (c *Context) GetPostFormArray(key string) (values []string, ok bool) {
-	c.initFormCache()
-	values, ok = c.formCache[key]
-	return
 }
 
 // PostFormMap returns a map for a given form key.
@@ -735,7 +612,7 @@ func (c *Context) get(m map[string][]string, key string) (map[string]string, boo
 // FormFile returns the first file for the provided form key.
 func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 	if c.Request.MultipartForm == nil {
-		if err := c.Request.ParseMultipartForm(c.engine.MaxMultipartMemory); err != nil {
+		if err := c.Request.ParseMultipartForm(c.MaxMultipartMemory); err != nil {
 			return nil, err
 		}
 	}
@@ -749,7 +626,7 @@ func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
 
 // MultipartForm is the parsed multipart form, including file uploads.
 func (c *Context) MultipartForm() (*multipart.Form, error) {
-	err := c.Request.ParseMultipartForm(c.engine.MaxMultipartMemory)
+	err := c.Request.ParseMultipartForm(c.MaxMultipartMemory)
 	return c.Request.MultipartForm, err
 }
 
@@ -896,8 +773,9 @@ func (c *Context) ShouldBindHeader(obj any) error {
 
 // ShouldBindUri binds the passed struct pointer using the specified binding engine.
 func (c *Context) ShouldBindUri(obj any) error {
-	m := make(map[string][]string, len(c.Params))
-	for _, v := range c.Params {
+	params := c.execer.GetParams()
+	m := make(map[string][]string, len(params))
+	for _, v := range params {
 		m[v.Key] = []string{v.Value}
 	}
 	return binding.Uri.BindUri(m, obj)
@@ -916,8 +794,8 @@ func (c *Context) ShouldBindWith(obj any, b binding.Binding) error {
 // ShouldBindWith for better performance if you need to call only once.
 func (c *Context) ShouldBindBodyWith(obj any, bb binding.BindingBody) (err error) {
 	var body []byte
-	if cb, ok := c.Get(BodyBytesKey); ok {
-		if cbb, ok := cb.([]byte); ok {
+	if cb := c.Get(BodyBytesKey); !cb.IsNil() {
+		if cbb, ok := cb.Any().([]byte); ok {
 			body = cbb
 		}
 	}
@@ -954,48 +832,6 @@ func (c *Context) ShouldBindBodyWithTOML(obj any) error {
 // ShouldBindBodyWithJSON is a shortcut for c.ShouldBindBodyWith(obj, binding.JSON).
 func (c *Context) ShouldBindBodyWithPlain(obj any) error {
 	return c.ShouldBindBodyWith(obj, binding.Plain)
-}
-
-// ClientIP implements one best effort algorithm to return the real client IP.
-// It calls c.RemoteIP() under the hood, to check if the remote IP is a trusted proxy or not.
-// If it is it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
-// If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
-// the remote IP (coming from Request.RemoteAddr) is returned.
-func (c *Context) ClientIP() string {
-	// Check if we're running on a trusted platform, continue running backwards if error
-	if c.engine.TrustedPlatform != "" {
-		// Developers can define their own header of Trusted Platform or use predefined constants
-		if addr := c.requestHeader(c.engine.TrustedPlatform); addr != "" {
-			return addr
-		}
-	}
-
-	// Legacy "AppEngine" flag
-	if c.engine.AppEngine {
-		log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
-		if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
-			return addr
-		}
-	}
-
-	// It also checks if the remoteIP is a trusted proxy or not.
-	// In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
-	// defined by Engine.SetTrustedProxies()
-	remoteIP := net.ParseIP(c.RemoteIP())
-	if remoteIP == nil {
-		return ""
-	}
-	trusted := c.engine.isTrustedProxy(remoteIP)
-
-	if trusted && c.engine.ForwardedByClientIP && c.engine.RemoteIPHeaders != nil {
-		for _, headerName := range c.engine.RemoteIPHeaders {
-			ip, valid := c.engine.validateHeader(c.requestHeader(headerName))
-			if valid {
-				return ip
-			}
-		}
-	}
-	return remoteIP.String()
 }
 
 // RemoteIP parses the IP from Request.RemoteAddr, normalizes and returns the IP (without the port).
@@ -1045,18 +881,14 @@ func bodyAllowedForStatus(status int) bool {
 
 // Status sets the HTTP response code.
 func (c *Context) Status(code int) {
-	c.Writer.WriteHeader(code)
+	c.Response.WriteHeader(code)
 }
 
 // Header is an intelligent shortcut for c.Writer.Header().Set(key, value).
 // It writes a header in the response.
 // If value == "", this method removes the header `c.Writer.Header().Del(key)`
 func (c *Context) Header(key, value string) {
-	if value == "" {
-		c.Writer.Header().Del(key)
-		return
-	}
-	c.Writer.Header().Set(key, value)
+	c.execer.Header(key, value)
 }
 
 // GetHeader returns value from request headers.
@@ -1084,7 +916,7 @@ func (c *Context) SetCookie(name, value string, maxAge int, path, domain string,
 	if path == "" {
 		path = "/"
 	}
-	http.SetCookie(c.Writer, &http.Cookie{
+	http.SetCookie(c.Response, &http.Cookie{
 		Name:     name,
 		Value:    url.QueryEscape(value),
 		MaxAge:   maxAge,
@@ -1100,6 +932,7 @@ func (c *Context) SetCookie(name, value string, maxAge int, path, domain string,
 // ErrNoCookie if not found. And return the named cookie is unescaped.
 // If multiple cookies match the given name, only one cookie will
 // be returned.
+// todo: 修改为返回Value
 func (c *Context) Cookie(name string) (string, error) {
 	cookie, err := c.Request.Cookie(name)
 	if err != nil {
@@ -1114,12 +947,12 @@ func (c *Context) Render(code int, r render.Render) {
 	c.Status(code)
 
 	if !bodyAllowedForStatus(code) {
-		r.WriteContentType(c.Writer)
-		c.Writer.WriteHeaderNow()
+		r.WriteContentType(c.Response)
+		c.Response.WriteHeaderNow()
 		return
 	}
 
-	if err := r.Render(c.Writer); err != nil {
+	if err := r.Render(c.Response); err != nil {
 		// Pushing error to c.Errors
 		_ = c.Error(err)
 		c.Abort()
@@ -1130,7 +963,7 @@ func (c *Context) Render(code int, r render.Render) {
 // It also updates the HTTP code and sets the Content-Type as "text/html".
 // See http://golang.org/doc/articles/wiki/
 func (c *Context) HTML(code int, name string, obj any) {
-	instance := c.engine.HTMLRender.Instance(name, obj)
+	instance := c.HTMLRender.Instance(name, obj)
 	c.Render(code, instance)
 }
 
@@ -1145,15 +978,19 @@ func (c *Context) IndentedJSON(code int, obj any) {
 // SecureJSON serializes the given struct as Secure JSON into the response body.
 // Default prepends "while(1)," to response body if the given struct is array values.
 // It also sets the Content-Type as "application/json".
-func (c *Context) SecureJSON(code int, obj any) {
-	c.Render(code, render.SecureJSON{Prefix: c.engine.secureJSONPrefix, Data: obj})
+func (c *Context) SecureJSON(code int, obj any, secureJSONPrefix ...string) {
+	prefix := "while(1);"
+	if len(secureJSONPrefix) > 0 {
+		prefix = secureJSONPrefix[0]
+	}
+	c.Render(code, render.SecureJSON{Prefix: prefix, Data: obj})
 }
 
 // JSONP serializes the given struct as JSON into the response body.
 // It adds padding to response body to request data from a server residing in a different domain than the client.
 // It also sets the Content-Type as "application/javascript".
 func (c *Context) JSONP(code int, obj any) {
-	callback := c.DefaultQuery("callback", "")
+	callback := c.Query("callback", "").String()
 	if callback == "" {
 		c.Render(code, render.JSON{Data: obj})
 		return
@@ -1215,7 +1052,13 @@ func (c *Context) Redirect(code int, location string) {
 }
 
 // Data writes some data into the body stream and updates the HTTP code.
-func (c *Context) Data(code int, contentType string, data []byte) {
+func (c *Context) Data(code int, data []byte, contentTypes ...string) {
+	var contentType string
+	if len(contentTypes) == 0 {
+		contentType = "text/plain; charset=utf-8"
+	} else {
+		contentType = contentTypes[0]
+	}
 	c.Render(code, render.Data{
 		ContentType: contentType,
 		Data:        data,
@@ -1234,7 +1077,7 @@ func (c *Context) DataFromReader(code int, contentLength int64, contentType stri
 
 // File writes the specified file into the body stream in an efficient way.
 func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer, c.Request, filepath)
+	http.ServeFile(c.Response, c.Request, filepath)
 }
 
 // FileFromFS writes the specified file from http.FileSystem into the body stream in an efficient way.
@@ -1245,7 +1088,7 @@ func (c *Context) FileFromFS(filepath string, fs http.FileSystem) {
 
 	c.Request.URL.Path = filepath
 
-	http.FileServer(fs).ServeHTTP(c.Writer, c.Request)
+	http.FileServer(fs).ServeHTTP(c.Response, c.Request)
 }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
@@ -1258,11 +1101,11 @@ func escapeQuotes(s string) string {
 // On the client side, the file will typically be downloaded with the given filename
 func (c *Context) FileAttachment(filepath, filename string) {
 	if isASCII(filename) {
-		c.Writer.Header().Set("Content-Disposition", `attachment; filename="`+escapeQuotes(filename)+`"`)
+		c.Response.Header().Set("Content-Disposition", `attachment; filename="`+escapeQuotes(filename)+`"`)
 	} else {
-		c.Writer.Header().Set("Content-Disposition", `attachment; filename*=UTF-8''`+url.QueryEscape(filename))
+		c.Response.Header().Set("Content-Disposition", `attachment; filename*=UTF-8''`+url.QueryEscape(filename))
 	}
-	http.ServeFile(c.Writer, c.Request, filepath)
+	http.ServeFile(c.Response, c.Request, filepath)
 }
 
 // SSEvent writes a Server-Sent Event into the body stream.
@@ -1276,7 +1119,7 @@ func (c *Context) SSEvent(name string, message any) {
 // Stream sends a streaming response and returns a boolean
 // indicates "Is client disconnected in middle of stream"
 func (c *Context) Stream(step func(w io.Writer) bool) bool {
-	w := c.Writer
+	w := c.Response
 	clientGone := w.CloseNotify()
 	for {
 		select {
@@ -1378,7 +1221,7 @@ func (c *Context) SetAccepted(formats ...string) {
 
 // hasRequestContext returns whether c.Request has Context and fallback.
 func (c *Context) hasRequestContext() bool {
-	hasFallback := c.engine != nil && c.engine.ContextWithFallback
+	hasFallback := c.ContextWithFallback
 	hasRequestContext := c.Request != nil && c.Request.Context() != nil
 	return hasFallback && hasRequestContext
 }
@@ -1407,23 +1250,7 @@ func (c *Context) Err() error {
 	return c.Request.Context().Err()
 }
 
-// Value returns the value associated with this context for key, or nil
-// if no value is associated with key. Successive calls to Value with
-// the same key returns the same result.
-func (c *Context) Value(key any) any {
-	if key == ContextRequestKey {
-		return c.Request
-	}
-	if key == ContextKey {
-		return c
-	}
-	if keyAsString, ok := key.(string); ok {
-		if val, exists := c.Get(keyAsString); exists {
-			return val
-		}
-	}
-	if !c.hasRequestContext() {
-		return nil
-	}
-	return c.Request.Context().Value(key)
+// ClientIP implements one best effort algorithm to return the real client IP.
+func (c *Context) ClientIP() string {
+	return ClientIP(c.Request)
 }

@@ -2,13 +2,12 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"bufio"
 	"crypto/tls"
 	"fmt"
-	"html/template"
 	"io"
 	"net"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -65,7 +63,7 @@ func testRequest(t *testing.T, params ...string) {
 
 func TestRunEmpty(t *testing.T) {
 	os.Setenv("PORT", "")
-	router := New()
+	router := New(&Context{})
 	go func() {
 		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 		assert.NoError(t, router.Run())
@@ -78,10 +76,10 @@ func TestRunEmpty(t *testing.T) {
 	testRequest(t, "http://localhost:8080/example")
 }
 
-func TestBadTrustedCIDRs(t *testing.T) {
-	router := New()
-	require.Error(t, router.SetTrustedProxies([]string{"hello/world"}))
-}
+// func TestBadTrustedCIDRs(t *testing.T) {
+// 	router := New(&Context{})
+// 	require.Error(t, router.SetTrustedProxies([]string{"hello/world"}))
+// }
 
 /* legacy tests
 func TestBadTrustedCIDRsForRun(t *testing.T) {
@@ -154,7 +152,7 @@ func TestBadTrustedCIDRsForRunTLS(t *testing.T) {
 */
 
 func TestRunTLS(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	go func() {
 		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
@@ -169,46 +167,46 @@ func TestRunTLS(t *testing.T) {
 	testRequest(t, "https://localhost:8443/example")
 }
 
-func TestPusher(t *testing.T) {
-	var html = template.Must(template.New("https").Parse(`
-<html>
-<head>
-  <title>Https Test</title>
-  <script src="/assets/app.js"></script>
-</head>
-<body>
-  <h1 style="color:red;">Welcome, Ginner!</h1>
-</body>
-</html>
-`))
+// func TestPusher(t *testing.T) {
+// 	var html = template.Must(template.New("https").Parse(`
+// <html>
+// <head>
+//   <title>Https Test</title>
+//   <script src="/assets/app.js"></script>
+// </head>
+// <body>
+//   <h1 style="color:red;">Welcome, Ginner!</h1>
+// </body>
+// </html>
+// `))
 
-	router := New()
-	router.Static("./assets", "./assets")
-	router.SetHTMLTemplate(html)
+// 	router := New(&Context{})
+// 	router.Static("./assets", "./assets")
+// 	router.SetHTMLTemplate(html)
 
-	go func() {
-		router.GET("/pusher", func(c *Context) {
-			if pusher := c.Writer.Pusher(); pusher != nil {
-				err := pusher.Push("/assets/app.js", nil)
-				assert.NoError(t, err)
-			}
-			c.String(http.StatusOK, "it worked")
-		})
+// 	go func() {
+// 		router.GET("/pusher", func(c *Context) {
+// 			if pusher := c.Writer.Pusher(); pusher != nil {
+// 				err := pusher.Push("/assets/app.js", nil)
+// 				assert.NoError(t, err)
+// 			}
+// 			c.String(http.StatusOK, "it worked")
+// 		})
 
-		assert.NoError(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
-	}()
+// 		assert.NoError(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+// 	}()
 
-	// have to wait for the goroutine to start and run the server
-	// otherwise the main thread will complete
-	time.Sleep(5 * time.Millisecond)
+// 	// have to wait for the goroutine to start and run the server
+// 	// otherwise the main thread will complete
+// 	time.Sleep(5 * time.Millisecond)
 
-	require.Error(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
-	testRequest(t, "https://localhost:8449/pusher")
-}
+// 	require.Error(t, router.RunTLS(":8449", "./testdata/certificate/cert.pem", "./testdata/certificate/key.pem"))
+// 	testRequest(t, "https://localhost:8449/pusher")
+// }
 
 func TestRunEmptyWithEnv(t *testing.T) {
 	os.Setenv("PORT", "3123")
-	router := New()
+	router := New(&Context{})
 	go func() {
 		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 		assert.NoError(t, router.Run())
@@ -222,14 +220,14 @@ func TestRunEmptyWithEnv(t *testing.T) {
 }
 
 func TestRunTooMuchParams(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	assert.Panics(t, func() {
 		require.NoError(t, router.Run("2", "2"))
 	})
 }
 
 func TestRunWithPort(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	go func() {
 		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 		assert.NoError(t, router.Run(":5150"))
@@ -243,7 +241,7 @@ func TestRunWithPort(t *testing.T) {
 }
 
 func TestUnixSocket(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 
 	unixTestSocket := filepath.Join(os.TempDir(), "unix_unit_test")
 
@@ -271,12 +269,12 @@ func TestUnixSocket(t *testing.T) {
 }
 
 func TestBadUnixSocket(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	require.Error(t, router.RunUnix("#/tmp/unix_unit_test"))
 }
 
 func TestRunQUIC(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	go func() {
 		router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
@@ -292,7 +290,7 @@ func TestRunQUIC(t *testing.T) {
 }
 
 func TestFileDescriptor(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	require.NoError(t, err)
@@ -332,12 +330,12 @@ func TestFileDescriptor(t *testing.T) {
 }
 
 func TestBadFileDescriptor(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	require.Error(t, router.RunFd(0))
 }
 
 func TestListener(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	require.NoError(t, err)
 	listener, err := net.ListenTCP("tcp", addr)
@@ -364,7 +362,7 @@ func TestListener(t *testing.T) {
 }
 
 func TestBadListener(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:10086")
 	require.NoError(t, err)
 	listener, err := net.ListenTCP("tcp", addr)
@@ -374,7 +372,7 @@ func TestBadListener(t *testing.T) {
 }
 
 func TestWithHttptestWithAutoSelectedPort(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
 	ts := httptest.NewServer(router)
@@ -383,32 +381,32 @@ func TestWithHttptestWithAutoSelectedPort(t *testing.T) {
 	testRequest(t, ts.URL+"/example")
 }
 
-func TestConcurrentHandleContext(t *testing.T) {
-	router := New()
-	router.GET("/", func(c *Context) {
-		c.Request.URL.Path = "/example"
-		router.HandleContext(c)
-	})
-	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
+// func TestConcurrentHandleContext(t *testing.T) {
+// 	router := New(&Context{})
+// 	router.GET("/", func(c *Context) {
+// 		c.Request.URL.Path = "/example"
+// 		router.HandleContext(c)
+// 	})
+// 	router.GET("/example", func(c *Context) { c.String(http.StatusOK, "it worked") })
 
-	var wg sync.WaitGroup
-	iterations := 200
-	wg.Add(iterations)
-	for i := 0; i < iterations; i++ {
-		go func() {
-			req, err := http.NewRequest(http.MethodGet, "/", nil)
-			assert.NoError(t, err)
+// 	var wg sync.WaitGroup
+// 	iterations := 200
+// 	wg.Add(iterations)
+// 	for i := 0; i < iterations; i++ {
+// 		go func() {
+// 			req, err := http.NewRequest(http.MethodGet, "/", nil)
+// 			assert.NoError(t, err)
 
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
+// 			w := httptest.NewRecorder()
+// 			router.ServeHTTP(w, req)
 
-			assert.Equal(t, "it worked", w.Body.String(), "resp body should match")
-			assert.Equal(t, 200, w.Code, "should get a 200")
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-}
+// 			assert.Equal(t, "it worked", w.Body.String(), "resp body should match")
+// 			assert.Equal(t, 200, w.Code, "should get a 200")
+// 			wg.Done()
+// 		}()
+// 	}
+// 	wg.Wait()
+// }
 
 // func TestWithHttptestWithSpecifiedPort(t *testing.T) {
 // 	router := New()
@@ -426,7 +424,7 @@ func TestConcurrentHandleContext(t *testing.T) {
 // }
 
 func TestTreeRunDynamicRouting(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	router.GET("/aa/*xx", func(c *Context) { c.String(http.StatusOK, "/aa/*xx") })
 	router.GET("/ab/*xx", func(c *Context) { c.String(http.StatusOK, "/ab/*xx") })
 	router.GET("/", func(c *Context) { c.String(http.StatusOK, "home") })
@@ -576,7 +574,7 @@ func isWindows() bool {
 }
 
 func TestEscapedColon(t *testing.T) {
-	router := New()
+	router := New(&Context{})
 	f := func(u string) {
 		router.GET(u, func(c *Context) { c.String(http.StatusOK, u) })
 	}

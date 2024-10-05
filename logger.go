@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"fmt"
@@ -54,7 +54,7 @@ type LoggerConfig struct {
 }
 
 // Skipper is a function to skip logs based on provided Context
-type Skipper func(c *Context) bool
+type Skipper func(c IContext) bool
 
 // LogFormatter gives the signature of the formatter function passed to LoggerWithFormatter
 type LogFormatter func(params LogFormatterParams) string
@@ -149,8 +149,8 @@ var defaultLogFormatter = func(param LogFormatterParams) string {
 	if param.Latency > time.Minute {
 		param.Latency = param.Latency.Truncate(time.Second)
 	}
-	return fmt.Sprintf("[GIN] %v |%s %3d %s| %13v | %15s |%s %-7s %s %#v\n%s",
-		param.TimeStamp.Format("2006/01/02 - 15:04:05"),
+	return fmt.Sprintf("%v |hi|%s %3d %s| %13v | %15s |%s %-7s %s %#v\n%s",
+		param.TimeStamp.Format("2006/01/02 15:04:05"),
 		statusColor, param.StatusCode, resetColor,
 		param.Latency,
 		param.ClientIP,
@@ -171,45 +171,45 @@ func ForceConsoleColor() {
 }
 
 // ErrorLogger returns a HandlerFunc for any error type.
-func ErrorLogger() HandlerFunc {
-	return ErrorLoggerT(ErrorTypeAny)
-}
+// func ErrorLogger[T IContext]() HandlerFunc[T] {
+// 	return ErrorLoggerT[T](ErrorTypeAny)
+// }
 
 // ErrorLoggerT returns a HandlerFunc for a given error type.
-func ErrorLoggerT(typ ErrorType) HandlerFunc {
-	return func(c *Context) {
-		c.Next()
-		errors := c.Errors.ByType(typ)
-		if len(errors) > 0 {
-			c.JSON(-1, errors)
-		}
-	}
-}
+// func ErrorLoggerT[T IContext](typ ErrorType) HandlerFunc[T] {
+// 	return func(c T) {
+// 		c.Next()
+// 		errors := c.GetErrors().ByType(typ)
+// 		if len(errors) > 0 {
+// 			c.JSON(-1, errors)
+// 		}
+// 	}
+// }
 
 // Logger instances a Logger middleware that will write the logs to gin.DefaultWriter.
 // By default, gin.DefaultWriter = os.Stdout.
-func Logger() HandlerFunc {
-	return LoggerWithConfig(LoggerConfig{})
+func Logger[T IContext]() HandlerFunc[T] {
+	return LoggerWithConfig[T](LoggerConfig{})
 }
 
 // LoggerWithFormatter instance a Logger middleware with the specified log format function.
-func LoggerWithFormatter(f LogFormatter) HandlerFunc {
-	return LoggerWithConfig(LoggerConfig{
+func LoggerWithFormatter[T IContext](f LogFormatter) HandlerFunc[T] {
+	return LoggerWithConfig[T](LoggerConfig{
 		Formatter: f,
 	})
 }
 
 // LoggerWithWriter instance a Logger middleware with the specified writer buffer.
 // Example: os.Stdout, a file opened in write mode, a socket...
-func LoggerWithWriter(out io.Writer, notlogged ...string) HandlerFunc {
-	return LoggerWithConfig(LoggerConfig{
+func LoggerWithWriter[T IContext](out io.Writer, notlogged ...string) HandlerFunc[T] {
+	return LoggerWithConfig[T](LoggerConfig{
 		Output:    out,
 		SkipPaths: notlogged,
 	})
 }
 
 // LoggerWithConfig instance a Logger middleware with config.
-func LoggerWithConfig(conf LoggerConfig) HandlerFunc {
+func LoggerWithConfig[T IContext](conf LoggerConfig) HandlerFunc[T] {
 	formatter := conf.Formatter
 	if formatter == nil {
 		formatter = defaultLogFormatter
@@ -239,36 +239,35 @@ func LoggerWithConfig(conf LoggerConfig) HandlerFunc {
 		}
 	}
 
-	return func(c *Context) {
+	return func(c T) {
 		// Start timer
 		start := time.Now()
-		path := c.Request.URL.Path
-		raw := c.Request.URL.RawQuery
+		path := c.Req().URL.Path
+		raw := c.Req().URL.RawQuery
 
 		// Process request
 		c.Next()
-
 		// Log only when it is not being skipped
 		if _, ok := skip[path]; ok || (conf.Skip != nil && conf.Skip(c)) {
 			return
 		}
 
 		param := LogFormatterParams{
-			Request: c.Request,
+			Request: c.Req(),
 			isTerm:  isTerm,
-			Keys:    c.Keys,
+			Keys:    c.GetKeys(),
 		}
 
 		// Stop timer
 		param.TimeStamp = time.Now()
 		param.Latency = param.TimeStamp.Sub(start)
 
-		param.ClientIP = c.ClientIP()
-		param.Method = c.Request.Method
-		param.StatusCode = c.Writer.Status()
-		param.ErrorMessage = c.Errors.ByType(ErrorTypePrivate).String()
+		param.ClientIP = ClientIP(c.Req()) //c.ClientIP()
+		param.Method = c.Req().Method
+		param.StatusCode = c.Rsp().Status()
+		param.ErrorMessage = c.GetErrors().ByType(ErrorTypePrivate).String()
 
-		param.BodySize = c.Writer.Size()
+		param.BodySize = c.Rsp().Size()
 
 		if raw != "" {
 			path = path + "?" + raw

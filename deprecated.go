@@ -2,12 +2,12 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"log"
 
-	"github.com/gin-gonic/gin/binding"
+	"github.com/nbcx/hi/binding"
 )
 
 // BindWith binds the passed struct pointer using the specified binding engine.

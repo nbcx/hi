@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"bytes"
@@ -26,36 +26,43 @@ var (
 	slash     = []byte("/")
 )
 
+// ErrAbort custom error when user stop request handler manually.
+var ErrAbort = errors.New("user stop run")
+
 // RecoveryFunc defines the function passable to CustomRecovery.
-type RecoveryFunc func(c *Context, err any)
+type RecoveryFunc[T IContext] func(c T, err any)
 
 // Recovery returns a middleware that recovers from any panics and writes a 500 if there was one.
-func Recovery() HandlerFunc {
-	return RecoveryWithWriter(DefaultErrorWriter)
+func Recovery[T IContext]() HandlerFunc[T] {
+	return RecoveryWithWriter[T](DefaultErrorWriter)
 }
 
 // CustomRecovery returns a middleware that recovers from any panics and calls the provided handle func to handle it.
-func CustomRecovery(handle RecoveryFunc) HandlerFunc {
+func CustomRecovery[T IContext](handle RecoveryFunc[T]) HandlerFunc[T] {
 	return RecoveryWithWriter(DefaultErrorWriter, handle)
 }
 
 // RecoveryWithWriter returns a middleware for a given writer that recovers from any panics and writes a 500 if there was one.
-func RecoveryWithWriter(out io.Writer, recovery ...RecoveryFunc) HandlerFunc {
+func RecoveryWithWriter[T IContext](out io.Writer, recovery ...RecoveryFunc[T]) HandlerFunc[T] {
 	if len(recovery) > 0 {
 		return CustomRecoveryWithWriter(out, recovery[0])
 	}
-	return CustomRecoveryWithWriter(out, defaultHandleRecovery)
+	return CustomRecoveryWithWriter[T](out, defaultHandleRecovery)
 }
 
 // CustomRecoveryWithWriter returns a middleware for a given writer that recovers from any panics and calls the provided handle func to handle it.
-func CustomRecoveryWithWriter(out io.Writer, handle RecoveryFunc) HandlerFunc {
+func CustomRecoveryWithWriter[T IContext](out io.Writer, handle RecoveryFunc[T]) HandlerFunc[T] {
 	var logger *log.Logger
 	if out != nil {
 		logger = log.New(out, "\n\n\x1b[31m", log.LstdFlags)
 	}
-	return func(c *Context) {
+	return func(c T) {
 		defer func() {
 			if err := recover(); err != nil {
+				// The user actively terminates the operation
+				if errors.Is(err.(error), ErrAbort) {
+					return
+				}
 				// Check for a broken connection, as it is not really a
 				// condition that warrants a panic stack trace.
 				var brokenPipe bool
@@ -71,7 +78,7 @@ func CustomRecoveryWithWriter(out io.Writer, handle RecoveryFunc) HandlerFunc {
 				}
 				if logger != nil {
 					stack := stack(3)
-					httpRequest, _ := httputil.DumpRequest(c.Request, false)
+					httpRequest, _ := httputil.DumpRequest(c.Req(), false)
 					headers := strings.Split(string(httpRequest), "\r\n")
 					for idx, header := range headers {
 						current := strings.Split(header, ":")
@@ -93,7 +100,7 @@ func CustomRecoveryWithWriter(out io.Writer, handle RecoveryFunc) HandlerFunc {
 				if brokenPipe {
 					// If the connection is dead, we can't write a status to it.
 					c.Error(err.(error)) //nolint: errcheck
-					c.Abort()
+					c.GetExecer().Abort()
 				} else {
 					handle(c, err)
 				}
@@ -103,8 +110,8 @@ func CustomRecoveryWithWriter(out io.Writer, handle RecoveryFunc) HandlerFunc {
 	}
 }
 
-func defaultHandleRecovery(c *Context, _ any) {
-	c.AbortWithStatus(http.StatusInternalServerError)
+func defaultHandleRecovery[T IContext](c T, _ any) {
+	c.GetExecer().AbortWithStatus(http.StatusInternalServerError)
 }
 
 // stack returns a nicely formatted stack frame, skipping skip frames.

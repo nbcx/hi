@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
-package gin
+package hi
 
 import (
 	"flag"
@@ -10,7 +10,7 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/gin-gonic/gin/binding"
+	"github.com/nbcx/hi/binding"
 )
 
 // EnvGinMode indicates environment name for gin mode.
