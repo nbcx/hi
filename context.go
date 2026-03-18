@@ -281,10 +281,10 @@ func (c *Context) AbortWithStatusJSON(code int, jsonObj any) {
 
 // AbortWithError calls `AbortWithStatus()` and `Error()` internally.
 // This method stops the chain, writes the status code and pushes the specified error to `c.Errors`.
-// See Context.Error() for more details.
+// See Context.ParseError() for more details.
 func (c *Context) AbortWithError(code int, err error) *Error {
 	c.AbortWithStatus(code)
-	return c.Error(err)
+	return c.ParseError(err)
 }
 
 // Die makes panic of USERSTOPRUN error and go to recover function if defined.
@@ -309,7 +309,7 @@ func (c *Context) DieWithStatus(code int) {
 // A middleware can be used to collect all the errors and push them to a database together,
 // print a log, or append it in the HTTP response.
 // Error will panic if err is nil.
-func (c *Context) Error(err error) *Error {
+func (c *Context) ParseError(err error) *Error {
 	if err == nil {
 		panic("err is nil")
 	}
@@ -954,7 +954,7 @@ func (c *Context) Render(code int, r render.Render) {
 
 	if err := r.Render(c.Response); err != nil {
 		// Pushing error to c.Errors
-		_ = c.Error(err)
+		_ = c.ParseError(err)
 		c.Abort()
 	}
 }

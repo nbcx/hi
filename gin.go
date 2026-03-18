@@ -36,7 +36,7 @@ type IContext interface {
 	Set(key string, value any) // todo: 待移除
 	GetKeys() map[string]any   // todo: 待整合到Execer
 	GetErrors() errorMsgs
-	Error(err error) *Error
+	ParseError(err error) *Error
 }
 
 const defaultMultipartMemory = 32 << 20 // 32 MB

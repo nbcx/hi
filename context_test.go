@@ -161,7 +161,7 @@ func TestContextReset(t *testing.T) {
 	c.execer.SetIndex(2)
 	c.Response = &responseWriter{ResponseWriter: httptest.NewRecorder()}
 	// c.Params = Params{Param{}}
-	c.Error(errors.New("test")) //nolint: errcheck
+	c.ParseError(errors.New("test")) //nolint: errcheck
 	c.Set("foo", "bar")
 	c.Reset()
 
@@ -1607,12 +1607,12 @@ func TestContextError(t *testing.T) {
 	assert.Empty(t, c.Errors)
 
 	firstErr := errors.New("first error")
-	c.Error(firstErr) //nolint: errcheck
+	c.ParseError(firstErr) //nolint: errcheck
 	assert.Len(t, c.Errors, 1)
 	assert.Equal(t, "Error #01: first error\n", c.Errors.String())
 
 	secondErr := errors.New("second error")
-	c.Error(&Error{ //nolint: errcheck
+	c.ParseError(&Error{ //nolint: errcheck
 		Err:  secondErr,
 		Meta: "some data 2",
 		Type: ErrorTypePublic,
@@ -1634,13 +1634,13 @@ func TestContextError(t *testing.T) {
 			t.Error("didn't panic")
 		}
 	}()
-	c.Error(nil) //nolint: errcheck
+	c.ParseError(nil) //nolint: errcheck
 }
 
 func TestContextTypedError(t *testing.T) {
 	c, _ := CreateTestContext(httptest.NewRecorder())
-	c.Error(errors.New("externo 0")).SetType(ErrorTypePublic)  //nolint: errcheck
-	c.Error(errors.New("interno 0")).SetType(ErrorTypePrivate) //nolint: errcheck
+	c.ParseError(errors.New("externo 0")).SetType(ErrorTypePublic)  //nolint: errcheck
+	c.ParseError(errors.New("interno 0")).SetType(ErrorTypePrivate) //nolint: errcheck
 
 	for _, err := range c.Errors.ByType(ErrorTypePublic) {
 		assert.Equal(t, ErrorTypePublic, err.Type)

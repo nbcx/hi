@@ -99,7 +99,7 @@ func CustomRecoveryWithWriter[T IContext](out io.Writer, handle RecoveryFunc[T])
 				}
 				if brokenPipe {
 					// If the connection is dead, we can't write a status to it.
-					c.Error(err.(error)) //nolint: errcheck
+					c.ParseError(err.(error)) //nolint: errcheck
 					c.GetExecer().Abort()
 				} else {
 					handle(c, err)
